@@ -255,19 +255,25 @@ function renderAnalysisCard(data) {
 
     <div class="score-row">
       <div class="score-pill">
-        <span class="score-label">Trend</span>
+        <div class="score-label-row">
+          <span class="score-label">Trend</span>
+          ${infoBtn("trend")}
+        </div>
         <span class="score-value">${data.trend.trend_score}/3</span>
-        ${infoBtn("trend")}
       </div>
       <div class="score-pill">
-        <span class="score-label">Fundamentals</span>
+        <div class="score-label-row">
+          <span class="score-label">Fundamentals</span>
+          ${infoBtn("fundamentals")}
+        </div>
         <span class="score-value">${data.fundamentals_summary.fundamental_score}/3</span>
-        ${infoBtn("fundamentals")}
       </div>
       <div class="score-pill">
-        <span class="score-label">${escapeHtml(data.trend.conviction_flag || "Volume")}</span>
+        <div class="score-label-row">
+          <span class="score-label">${escapeHtml(data.trend.conviction_flag || "Volume")}</span>
+          ${infoBtn("volume")}
+        </div>
         <span class="score-value">${(data.trend.volume_ratio || 0).toFixed(2)}x</span>
-        ${infoBtn("volume")}
       </div>
     </div>
 
@@ -309,7 +315,9 @@ function renderAnalysisCard(data) {
 
     ${
       data.data_warnings && data.data_warnings.length > 0
-        ? `<div class="warnings-strip">⚠️ ${data.data_warnings.map(escapeHtml).join(" • ")}</div>`
+        ? `<div class="warnings-strip">${data.data_warnings
+            .map((w) => renderWarningChip(w, { kind: "strip" }))
+            .join("")}</div>`
         : ""
     }
 
@@ -334,6 +342,20 @@ function renderAnalysisCard(data) {
       e.stopPropagation();
       showInfoPopover(btn);
     });
+  });
+
+  // Expandable warnings
+  card.querySelectorAll(".warning-expandable").forEach((wrap) => {
+    const btn = wrap.querySelector(".warning-summary");
+    const detail = wrap.querySelector(".warning-detail");
+    const chevron = wrap.querySelector(".warning-chevron");
+    if (btn && detail) {
+      btn.addEventListener("click", () => {
+        const opened = !detail.classList.toggle("hidden");
+        chevron.textContent = opened ? "▴" : "▾";
+        wrap.classList.toggle("open", opened);
+      });
+    }
   });
 
   card.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -418,7 +440,7 @@ function renderFundamentalsDetail(fund) {
     </div>
     ${
       fund.red_flags && fund.red_flags.length > 0
-        ? `<div class="red-flags">${fund.red_flags.map((f) => `<span class="flag-item">⚠️ ${escapeHtml(f)}</span>`).join("")}</div>`
+        ? `<div class="red-flags">${fund.red_flags.map((f) => renderWarningChip(f, { kind: "flag" })).join("")}</div>`
         : ""
     }
   `;
@@ -512,6 +534,77 @@ const INFO_TEXTS = {
 
 function infoBtn(key) {
   return `<button class="info-btn" data-info="${key}" aria-label="info" type="button">i</button>`;
+}
+
+// ---------- EXPANDABLE WARNINGS ----------
+// Each entry: matcher tested against warning text -> step-by-step manual check.
+const WARNING_GUIDES = [
+  {
+    match: /pledg/i,
+    title: "How to check promoter pledging manually",
+    steps: [
+      "Open <strong>screener.in</strong> and search the stock — the Promoter Pledging % shows on the main page.",
+      "Or go to <strong>nseindia.com</strong> → Equities → Shareholding Pattern → look for 'Shares Pledged'.",
+      "On <strong>BSE India</strong>: bseindia.com → Corp Information → Pledged Shares.",
+      "Rule of thumb — pledging above ~30% is a red flag; above 50% is serious risk.",
+    ],
+  },
+  {
+    match: /auditor/i,
+    title: "How to verify auditor changes manually",
+    steps: [
+      "Search the company on <strong>nseindia.com</strong> → Announcements → look for 'Resignation of Auditor'.",
+      "Cross-check on <strong>screener.in</strong> annual reports section for any mid-year auditor change.",
+      "Read the resignation letter — vague reasons like 'pre-occupation' or 'commercial differences' are sus.",
+      "Check if the new auditor is a tier-1 firm (Deloitte, KPMG, EY, PwC, BSR) or a smaller one.",
+    ],
+  },
+  {
+    match: /data may be delayed|latest price/i,
+    title: "How to verify the latest price",
+    steps: [
+      "Open <strong>nseindia.com</strong> and search the ticker — that's the source of truth for end-of-day prices.",
+      "Or use <strong>screener.in</strong> / <strong>moneycontrol.com</strong> — both update within minutes of NSE close.",
+      "If our price differs by more than 2% from NSE's, the yfinance feed is lagging — re-check after 30 min.",
+    ],
+  },
+  {
+    match: /fundamental data|incomplete/i,
+    title: "How to fill in missing fundamentals",
+    steps: [
+      "<strong>screener.in</strong> has the cleanest free view of ROE, P/E, debt/equity, profit growth.",
+      "<strong>tijori.in</strong> for sector comparisons.",
+      "<strong>tickertape.in</strong> shows analyst-style scorecards for free.",
+      "For deep filings, the company's annual report on <strong>bseindia.com</strong> is the original source.",
+    ],
+  },
+];
+
+function _findGuide(text) {
+  return WARNING_GUIDES.find((g) => g.match.test(text)) || null;
+}
+
+function renderWarningChip(text, options = {}) {
+  const { kind = "flag" } = options; // "flag" or "strip"
+  const guide = _findGuide(text);
+  if (!guide) {
+    return kind === "flag"
+      ? `<span class="flag-item">⚠️ ${escapeHtml(text)}</span>`
+      : escapeHtml(text);
+  }
+  const stepsHtml = guide.steps.map((s) => `<li>${s}</li>`).join("");
+  return `
+    <div class="warning-expandable ${kind}-expandable">
+      <button class="warning-summary" type="button">
+        <span class="warning-summary-text">⚠️ ${escapeHtml(text)}</span>
+        <span class="warning-chevron">▾</span>
+      </button>
+      <div class="warning-detail hidden">
+        <div class="warning-detail-title">${escapeHtml(guide.title)}</div>
+        <ol class="warning-steps">${stepsHtml}</ol>
+      </div>
+    </div>
+  `;
 }
 const BOT_POSES = {
   default: "/assets/stalky.png",

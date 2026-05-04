@@ -571,12 +571,23 @@ input { font-family: inherit; }
   gap: 2px;
   letter-spacing: -0.01em;
 }
+.score-pill .score-label-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .score-pill .score-label {
   font-size: 10px;
   opacity: 0.75;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   font-weight: 700;
+}
+.score-pill .score-label-row .info-btn {
+  margin-left: 0;
+  width: 12px;
+  height: 12px;
+  font-size: 8px;
 }
 .score-pill .score-value {
   font-family: var(--font-display);
@@ -780,6 +791,86 @@ input { font-family: inherit; }
   font-size: 12px;
   color: #9a6b05;
   font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ===== EXPANDABLE WARNINGS (pledging, auditor, etc.) ===== */
+.warning-expandable {
+  display: block;
+  width: 100%;
+}
+.warning-expandable.flag-expandable {
+  background: var(--amber-soft);
+  border-left: 4px solid var(--amber);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.warning-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9a6b05;
+  transition: background 0.15s;
+}
+.flag-expandable .warning-summary { padding: 10px 14px; }
+.strip-expandable .warning-summary { padding: 0; color: inherit; }
+.warning-summary:hover { background: rgba(245, 159, 0, 0.08); }
+.strip-expandable .warning-summary:hover { background: transparent; opacity: 0.85; }
+.warning-summary-text { flex: 1; padding-right: 8px; }
+.warning-chevron {
+  font-size: 11px;
+  opacity: 0.65;
+  transition: transform 0.18s;
+  flex-shrink: 0;
+}
+.warning-expandable.open .warning-chevron { opacity: 1; }
+.warning-detail {
+  padding: 0 16px 14px;
+  font-weight: 500;
+  font-size: 12px;
+  color: #6f4e02;
+  animation: detailIn 0.2s ease;
+}
+.strip-expandable .warning-detail {
+  padding: 8px 0 0;
+  border-top: 1px dashed rgba(154, 107, 5, 0.35);
+  margin-top: 8px;
+}
+.warning-detail.hidden { display: none; }
+.warning-detail-title {
+  font-weight: 700;
+  color: #7a5403;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-size: 10.5px;
+}
+.warning-steps {
+  list-style: decimal;
+  padding-left: 20px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.5;
+}
+.warning-steps li strong {
+  color: #5a3f02;
+  font-weight: 700;
+}
+@keyframes detailIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .disclaimer {
   margin-top: 18px;
@@ -1172,51 +1263,29 @@ input { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin-left: 6px;
+  width: 13px;
+  height: 13px;
+  margin-left: 5px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.12);
-  color: inherit;
-  font-size: 10px;
-  font-weight: 700;
-  font-family: 'Times New Roman', Georgia, serif;
+  background: transparent;
+  color: currentColor;
+  font-size: 9px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
   font-style: italic;
   line-height: 1;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid currentColor;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: opacity 0.15s ease;
   vertical-align: middle;
   flex-shrink: 0;
   padding: 0;
-  opacity: 0.65;
+  opacity: 0.3;
 }
-.info-btn:hover {
-  background: var(--black);
-  color: white;
-  border-color: var(--black);
+.info-btn:hover { opacity: 0.9; }
+.info-btn:focus-visible {
+  outline: none;
   opacity: 1;
-  transform: scale(1.1);
-}
-/* In colored containers, lift opacity */
-.status-badge .info-btn,
-.conviction-badge .info-btn,
-.score-pill .info-btn,
-.rsi-chip .info-btn,
-.zone-label .info-btn {
-  opacity: 0.7;
-}
-.score-pill .info-btn,
-.status-badge.status-amber .info-btn,
-.conviction-badge .info-btn {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.35);
-  color: inherit;
-}
-.score-pill .info-btn:hover,
-.status-badge.status-amber .info-btn:hover {
-  background: white;
-  color: var(--black);
 }
 
 @keyframes popoverIn {

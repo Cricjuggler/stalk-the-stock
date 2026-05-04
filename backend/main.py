@@ -57,17 +57,24 @@ if _FRONTEND_DIR.exists():
     if _ASSETS_DIR.exists():
         app.mount("/assets", StaticFiles(directory=str(_ASSETS_DIR)), name="assets")
 
+    # Tell the browser never to cache these — dev iteration shouldn't fight stale assets.
+    _NO_CACHE_HEADERS = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+
     @app.get("/")
     async def root():
-        return FileResponse(str(_FRONTEND_DIR / "index.html"))
+        return FileResponse(str(_FRONTEND_DIR / "index.html"), headers=_NO_CACHE_HEADERS)
 
     @app.get("/style.css")
     async def style_css():
-        return FileResponse(str(_FRONTEND_DIR / "style.css"))
+        return FileResponse(str(_FRONTEND_DIR / "style.css"), headers=_NO_CACHE_HEADERS)
 
     @app.get("/app.js")
     async def app_js():
-        return FileResponse(str(_FRONTEND_DIR / "app.js"))
+        return FileResponse(str(_FRONTEND_DIR / "app.js"), headers=_NO_CACHE_HEADERS)
 else:
     @app.get("/")
     async def root():

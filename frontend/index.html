@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stalk the Stock 👀 — Your Market Bestie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="app-layout">
+
+    <aside class="stock-browser" id="stock-browser">
+      <div class="browser-header">
+        <div class="brand-mini">
+          <span class="brand-dot"></span>
+          <span class="brand-text">stalk<span class="brand-text-muted">.</span></span>
+        </div>
+        <h2>The Watchlist <span class="wave">👀</span></h2>
+        <div class="search-wrap">
+          <input type="text" id="stock-search-input" placeholder="search a stock..." autocomplete="off" />
+          <button class="search-clear" id="search-clear" aria-label="Clear search">×</button>
+        </div>
+        <div class="browser-meta" id="browser-meta"></div>
+      </div>
+
+      <div class="browser-filters" id="browser-filters"></div>
+
+      <div id="stock-list-container" class="stock-list-container"></div>
+    </aside>
+
+    <main class="chat-panel">
+      <header class="app-header">
+        <div class="logo-wrap">
+          <span class="logo">Stalk the <span class="logo-underline">Stock</span><span class="logo-icon">👀</span></span>
+          <span class="tagline">we're watching them so you don't have to</span>
+        </div>
+        <div class="header-meta" id="header-meta">
+          <span class="live-dot"></span>
+          <span>live · NSE</span>
+        </div>
+      </header>
+
+      <div class="content-scroll" id="content-scroll">
+        <div id="analysis-card-container"></div>
+        <div id="chat-window" class="chat-window"></div>
+      </div>
+
+      <div class="quick-chips">
+        <button class="chip" data-msg="What does In-Form status actually mean?">🔥 what's in-form?</button>
+        <button class="chip" data-msg="Explain the Buy Zone like I'm a beginner">🟢 dip zone tea</button>
+        <button class="chip" data-msg="How is the rating calculated?">📊 the algorithm</button>
+        <button class="chip" data-msg="Compare HDFCBANK and ICICIBANK">⚔️ HDFC vs ICICI</button>
+        <button class="chip" data-msg="What's hot in IT right now?">💻 IT vibes</button>
+      </div>
+
+      <div class="input-bar">
+        <input type="text" id="chat-input" placeholder="spill it... ask me anything 💬" autocomplete="off" />
+        <button id="send-btn">
+          <span>send</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </main>
+
+    <button class="mobile-toggle" id="mobile-toggle" aria-label="Browse stocks">
+      👀 <span>watchlist</span>
+    </button>
+    <div class="mobile-backdrop" id="mobile-backdrop"></div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

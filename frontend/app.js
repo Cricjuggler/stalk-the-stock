@@ -330,7 +330,6 @@ function renderAnalysisCard(data) {
       <p class="analyst-note">${escapeHtml(data.why_card.analyst_note || "")}</p>
       <span class="confidence-badge conf-${(data.why_card.confidence || "Medium").toLowerCase()}">
         ${escapeHtml(data.why_card.confidence || "Medium")} Confidence
-        ${infoBtn(data.why_card.source && data.why_card.source !== "claude" ? "ruleBasedCard" : "confidenceScore")}
       </span>
     </div>
 
@@ -595,8 +594,6 @@ const INFO_TEXTS = {
   exitZone: "Where signals suggest profit-taking pressure. Built from the upper Bollinger band (20,2σ) and the 52-week high. Not a sell recommendation — just where supply tends to appear.",
   priceChanges: "Percentage price change over each window — 1 day, 1 week (5 trading days), 1 month (21 trading days), YTD (year-to-date from Jan 1).",
   conviction: "🔥 High Conviction fires when yesterday's volume is over 2× the 30-day average — strong signal that whatever happened wasn't random.",
-  confidenceScore: "How strongly the trend and fundamental signals agree:\n• High — Trend score ≥ 2 AND Fundamental score ≥ 2\n• Medium — one side is weak or data is partial\n• Low — at least one score is 0\n\nThis is a signal-agreement measure, not a price prediction.",
-  ruleBasedCard: "The rating, scores, buy/sell zones, and all numbers are fully accurate — same data pipeline, no shortcuts.\n\nThe written bullets were drafted by a rule engine instead of the AI this time, so they're more templated than usual. Hit 🔄 re-stalk for a fresh attempt.",
 };
 
 function infoBtn(key) {

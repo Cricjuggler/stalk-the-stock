@@ -1,4 +1,4 @@
-"""Stalk the Stock — FastAPI app."""
+"""stalk. — FastAPI app."""
 from __future__ import annotations
 
 import logging
@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 import database
 from routers import stock, health
 from routers import auth as auth_router
+from routers import saved as saved_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,7 +24,7 @@ logger = logging.getLogger("stalkthestock")
 # Initialise DB before anything else
 database.init_db()
 
-app = FastAPI(title="Stalk the Stock", version="1.0.0")
+app = FastAPI(title="stalk.", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,6 +54,7 @@ async def log_requests(request: Request, call_next):
 app.include_router(health.router, prefix="")
 app.include_router(stock.router, prefix="/api")
 app.include_router(auth_router.router, prefix="/api/auth")
+app.include_router(saved_router.router, prefix="/api/saved")
 
 
 # Serve frontend (sibling directory) so the user can hit one URL.
@@ -84,4 +86,4 @@ if _FRONTEND_DIR.exists():
 else:
     @app.get("/")
     async def root():
-        return {"service": "Stalk the Stock", "status": "ok", "frontend": "not found"}
+        return {"service": "stalk.", "status": "ok", "frontend": "not found"}

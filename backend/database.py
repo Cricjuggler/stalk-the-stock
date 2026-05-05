@@ -21,7 +21,7 @@ def _connect() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Create the users table if it does not exist."""
+    """Create all tables if they do not exist."""
     with _connect() as conn:
         conn.execute(
             """
@@ -31,6 +31,17 @@ def init_db() -> None:
                 username TEXT    NOT NULL UNIQUE COLLATE NOCASE,
                 pw_hash  TEXT    NOT NULL,
                 created  TEXT    NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS saved_stocks (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                ticker   TEXT    NOT NULL,
+                saved_at TEXT    NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(user_id, ticker)
             )
             """
         )
@@ -92,3 +103,40 @@ def create_user(email: str, username: str, password: str) -> sqlite3.Row:
             "SELECT * FROM users WHERE id = ?", (cur.lastrowid,)
         ).fetchone()
     return row
+
+
+# ---------- Saved stocks ----------
+
+def get_saved_tickers(user_id: int) -> list[str]:
+    """Return list of tickers saved by this user."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT ticker FROM saved_stocks WHERE user_id = ? ORDER BY saved_at DESC",
+            (user_id,),
+        ).fetchall()
+    return [r["ticker"] for r in rows]
+
+
+def add_saved_stock(user_id: int, ticker: str) -> bool:
+    """Save a ticker for a user.  Returns True if newly added, False if duplicate."""
+    with _connect() as conn:
+        try:
+            conn.execute(
+                "INSERT INTO saved_stocks (user_id, ticker) VALUES (?, ?)",
+                (user_id, ticker.upper()),
+            )
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+
+def remove_saved_stock(user_id: int, ticker: str) -> bool:
+    """Remove a saved ticker.  Returns True if it existed and was deleted."""
+    with _connect() as conn:
+        cur = conn.execute(
+            "DELETE FROM saved_stocks WHERE user_id = ? AND ticker = ?",
+            (user_id, ticker.upper()),
+        )
+        conn.commit()
+    return cur.rowcount > 0

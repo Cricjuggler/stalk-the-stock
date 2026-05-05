@@ -1,4 +1,4 @@
-// Stalk the Stock — vanilla JS frontend
+// stalk. — vanilla JS frontend
 const API_BASE = window.location.origin.startsWith("http")
   ? window.location.origin
   : "http://localhost:8000";
@@ -25,6 +25,7 @@ const state = {
   stockUniverse: [],
   sectorMap: {},
   analyzedStocks: {},
+  savedStocks: new Set(),
   activeFilter: "All",
   searchQuery: "",
   searchDebounce: null,
@@ -33,7 +34,7 @@ const state = {
 };
 
 // FILTERS is built dynamically from the universe after load, but we seed with fixed top ones.
-const STATIC_FILTERS = ["All", "NIFTY50"];
+const STATIC_FILTERS = ["All", "Saved", "NIFTY50"];
 let FILTERS = [...STATIC_FILTERS];
 
 // ---------- INIT ----------
@@ -48,6 +49,7 @@ async function loadApp() {
   if (state.appLoaded) return;
   state.appLoaded = true;
   await loadStockUniverse();
+  await loadSavedStocks();
   renderFilterChips();
   renderStockList();
   setupEventListeners();
@@ -74,18 +76,107 @@ async function checkAuth() {
 }
 
 function renderUserChip(username) {
+  // Clean up any stale outside-click listener from a previous session
+  if (window._dotMenuHandler) {
+    document.removeEventListener("click", window._dotMenuHandler);
+    window._dotMenuHandler = null;
+  }
+
   const chip = document.getElementById("user-chip");
   if (!chip) return;
   chip.innerHTML = `
-    <span class="user-name">@${escapeHtml(username)}</span>
-    <button class="logout-btn" id="logout-btn">logout</button>
+    <div class="dot-menu" id="dot-menu">
+      <button class="dot-menu-btn" id="dot-menu-btn" aria-label="Account menu" title="Account">⋮</button>
+      <div class="dot-menu-dropdown hidden" id="dot-menu-dropdown">
+        <div class="dot-menu-user">@${escapeHtml(username)}</div>
+        <button class="dot-menu-item" id="dot-profile-btn">👤 profile</button>
+        <button class="dot-menu-item danger" id="dot-logout-btn">👋 logout</button>
+      </div>
+    </div>
   `;
-  chip.querySelector("#logout-btn").addEventListener("click", () => {
+
+  const menuBtn  = chip.querySelector("#dot-menu-btn");
+  const dropdown = chip.querySelector("#dot-menu-dropdown");
+
+  menuBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle("hidden");
+  });
+
+  chip.querySelector("#dot-profile-btn").addEventListener("click", () => {
+    dropdown.classList.add("hidden");
+    showToast(`logged in as @${escapeHtml(username)} ✨`, "info");
+  });
+
+  chip.querySelector("#dot-logout-btn").addEventListener("click", () => {
+    if (window._dotMenuHandler) {
+      document.removeEventListener("click", window._dotMenuHandler);
+      window._dotMenuHandler = null;
+    }
     clearAuth();
     chip.innerHTML = "";
     state.appLoaded = false;
+    state.savedStocks = new Set();
     showAuthOverlay();
   });
+
+  // Close dropdown when clicking anywhere outside
+  window._dotMenuHandler = function (e) {
+    const menu = document.getElementById("dot-menu");
+    if (!menu) {
+      document.removeEventListener("click", window._dotMenuHandler);
+      window._dotMenuHandler = null;
+      return;
+    }
+    if (!menu.contains(e.target)) dropdown.classList.add("hidden");
+  };
+  document.addEventListener("click", window._dotMenuHandler);
+}
+
+async function loadSavedStocks() {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/saved`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    state.savedStocks = new Set(data.tickers);
+  } catch { /* silent — saved list is a nice-to-have */ }
+}
+
+async function toggleSave(ticker) {
+  const token = getToken();
+  if (!token) { showToast("sign in to save stocks ✨", "info"); return; }
+  const wasSaved = state.savedStocks.has(ticker);
+
+  // Optimistic update
+  if (wasSaved) state.savedStocks.delete(ticker);
+  else state.savedStocks.add(ticker);
+  renderStockList();
+
+  try {
+    if (wasSaved) {
+      await fetch(`${API_BASE}/api/saved/${ticker}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } else {
+      await fetch(`${API_BASE}/api/saved`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ticker }),
+      });
+      showToast(`${ticker} saved ⭐`, "success");
+    }
+  } catch {
+    // Revert
+    if (wasSaved) state.savedStocks.add(ticker);
+    else state.savedStocks.delete(ticker);
+    renderStockList();
+    showToast("couldn't save that — try again 😬", "error");
+  }
 }
 
 function setupAuthForms() {
@@ -182,9 +273,9 @@ async function loadStockUniverse() {
     const meta = document.getElementById("browser-meta");
     const sectorCount = Object.keys(state.sectorMap).length;
     meta.textContent = `${data.total} stocks across ${sectorCount} sectors`;
-    // Build filter list: All + NIFTY50 + unique sectors (sorted)
+    // Build filter list: All + Saved + NIFTY50 + unique sectors (sorted)
     const sectors = [...new Set(state.stockUniverse.map((s) => s.sector).filter(Boolean))].sort();
-    FILTERS = ["All", "NIFTY50", ...sectors];
+    FILTERS = ["All", "Saved", "NIFTY50", ...sectors];
   } catch (e) {
     console.error(e);
     showToast("can't load the stock list rn — backend ghosted us 👻", "error");
@@ -192,11 +283,16 @@ async function loadStockUniverse() {
 }
 
 // ---------- FILTERS ----------
+function filterLabel(f) {
+  if (f === "Saved") return "⭐ Saved";
+  return f;
+}
+
 function renderFilterChips() {
   const c = document.getElementById("browser-filters");
   c.innerHTML = FILTERS.map(
     (f) =>
-      `<button class="filter-chip ${state.activeFilter === f ? "active" : ""}" data-filter="${f}">${f}</button>`
+      `<button class="filter-chip ${state.activeFilter === f ? "active" : ""}" data-filter="${f}">${filterLabel(f)}</button>`
   ).join("");
   c.querySelectorAll(".filter-chip").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -210,6 +306,7 @@ function renderFilterChips() {
 function applyFilter(stock) {
   const f = state.activeFilter;
   if (f === "All") return true;
+  if (f === "Saved") return state.savedStocks.has(stock.ticker);
   if (f === "NIFTY50") return stock.index === "NIFTY50";
   return stock.sector === f; // Dynamic sector match
 }
@@ -263,7 +360,10 @@ function renderStockList() {
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div style="padding:32px 16px;text-align:center;color:var(--text-muted);font-size:13px;">no matches found 🫥<br><span style="font-size:11px;opacity:0.7;">try a different vibe</span></div>`;
+    const isSavedFilter = state.activeFilter === "Saved";
+    container.innerHTML = isSavedFilter
+      ? `<div style="padding:32px 16px;text-align:center;color:var(--text-muted);font-size:13px;">no saved stocks yet 🌟<br><span style="font-size:11px;opacity:0.7;">tap ☆ next to any stock to save it</span></div>`
+      : `<div style="padding:32px 16px;text-align:center;color:var(--text-muted);font-size:13px;">no matches found 🫥<br><span style="font-size:11px;opacity:0.7;">try a different vibe</span></div>`;
     return;
   }
 
@@ -298,11 +398,20 @@ function renderStockList() {
       document.getElementById("mobile-backdrop").classList.remove("visible");
     });
   });
+
+  // Star buttons — stop propagation so click doesn't also selectStock
+  container.querySelectorAll(".save-star-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleSave(btn.dataset.ticker);
+    });
+  });
 }
 
 function stockItemHtml(s, q) {
   const analyzed = state.analyzedStocks[s.ticker];
   const isActive = state.currentTicker === s.ticker;
+  const isSaved = state.savedStocks.has(s.ticker);
   let statusDot = "";
   if (analyzed) {
     const color = analyzed.status?.color || "blue";
@@ -318,6 +427,7 @@ function stockItemHtml(s, q) {
         <span class="sector-tag">${escapeHtml(s.sector)}</span>
         ${statusDot}
         ${analyzed ? `<span class="status-mini">${escapeHtml(analyzed.status?.status || "")}</span>` : ""}
+        <button class="save-star-btn ${isSaved ? "saved" : ""}" data-ticker="${escapeHtml(s.ticker)}" title="${isSaved ? "Unsave" : "Save"}" type="button">${isSaved ? "★" : "☆"}</button>
       </div>
     </div>
   `;
@@ -728,7 +838,7 @@ const BOT_EMOJI = "👀";
 // ---------- INFO POPOVERS ----------
 // One-liners that appear when the user clicks the (i) next to a metric.
 const INFO_TEXTS = {
-  status: "Stalk the Stock's overall verdict.\n• In-Form 🔥 — strong trend + healthy fundamentals\n• On-Track ✅ — solid fundamentals, partial trend\n• Off-Track ⚠️ — weak fundamentals, mixed trend\n• Out-of-Form ❄️ — broken trend or critical red flag",
+  status: "stalk.'s overall verdict on where this stock stands.\n• In-Form 🔥 — strong trend + healthy fundamentals\n• On-Track ✅ — solid fundamentals, partial trend\n• Off-Track ⚠️ — weak fundamentals, mixed trend\n• Out-of-Form ❄️ — broken trend or critical red flag",
   rsi: "Relative Strength Index (14-day). Momentum oscillator from 0–100.\n• ≥ 70 — overbought (often due for a pullback)\n• ≤ 30 — oversold (often due for a bounce)\n• 30–70 — neutral",
   trend: "Trend score 0–3. Counts how many of these are true:\n• price > 1-week avg (5-day SMA)\n• price > 30-day avg (21-day SMA)\n• price > 52-week avg (252-day SMA)\nHigher = stronger uptrend hierarchy.",
   fundamentals: "Fundamental score 0–3. +1 each if:\n• Debt/Equity < 1\n• Return on Equity > 15%\n• Earnings growth positive\n'Unknown' values neither add nor subtract.",

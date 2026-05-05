@@ -1,4 +1,4 @@
-/* Stalk the Stock — cream / chunky / character vibe */
+/* stalk. — cream / chunky / character vibe */
 :root {
   /* Surfaces */
   --bg: #ebe7df;
@@ -285,6 +285,29 @@ input { font-family: inherit; }
   align-items: center;
   gap: 8px;
 }
+
+/* ===== SAVE STAR BUTTON ===== */
+.save-star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: opacity 0.15s, transform 0.18s;
+  opacity: 0.45;
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--amber);
+}
+.save-star-btn:hover {
+  opacity: 0.85;
+  transform: scale(1.25);
+}
+.save-star-btn.saved {
+  opacity: 1;
+}
 .sector-tag {
   font-size: 10px;
   padding: 3px 9px;
@@ -338,21 +361,12 @@ input { font-family: inherit; }
   gap: 10px;
   line-height: 1;
 }
-.logo-underline {
-  position: relative;
-  display: inline-block;
+.logo-wordmark {
+  display: inline;
 }
-.logo-underline::after {
-  content: "";
-  position: absolute;
-  left: -2px;
-  right: -2px;
-  bottom: -3px;
-  height: 8px;
-  background: var(--yellow);
-  border-radius: 4px;
-  z-index: -1;
-  transform: skewX(-6deg);
+.logo-dot {
+  color: var(--orange);
+  font-weight: 900;
 }
 .logo-icon {
   font-size: 26px;
@@ -1369,6 +1383,7 @@ input { font-family: inherit; }
 .toast.error { background: var(--red-soft); color: var(--red); border-color: var(--red); }
 .toast.warning { background: var(--amber-soft); color: #9a6b05; border-color: var(--amber); }
 .toast.success { background: var(--green-soft); color: var(--green); border-color: var(--green); }
+.toast.info { background: var(--blue-soft); color: var(--blue); border-color: var(--blue); }
 
 /* ===== MOBILE ===== */
 .mobile-toggle {
@@ -1603,37 +1618,75 @@ input { font-family: inherit; }
   line-height: 1.4;
 }
 
-/* ===== USER CHIP (header) ===== */
+/* ===== DOT-MENU (header account) ===== */
 .user-chip {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  margin-left: 8px;
+  position: relative;
+  margin-left: 6px;
 }
-.user-name {
+.dot-menu { position: relative; }
+.dot-menu-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bg-tint);
+  border: 1.5px solid var(--card-border);
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: -1px;
+}
+.dot-menu-btn:hover {
+  background: var(--card-border-strong);
+  border-color: var(--card-border-strong);
+  color: var(--ink);
+}
+.dot-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: var(--surface);
+  border: 1.5px solid var(--card-border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  min-width: 170px;
+  z-index: 120;
+  overflow: hidden;
+  animation: popoverIn 0.15s ease;
+}
+.dot-menu-dropdown.hidden { display: none; }
+.dot-menu-user {
+  padding: 12px 16px 10px;
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-secondary);
-}
-.logout-btn {
-  font-size: 11px;
-  font-weight: 700;
   color: var(--text-muted);
-  background: transparent;
-  border: 1.5px solid var(--card-border);
-  border-radius: var(--r-pill);
-  padding: 4px 10px;
+  border-bottom: 1px solid var(--card-border);
+}
+.dot-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  text-align: left;
+  background: none;
+  border: none;
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
   font-family: var(--font);
-  transition: all 0.18s;
+  color: var(--text);
+  transition: background 0.13s;
 }
-.logout-btn:hover {
-  color: var(--red);
-  border-color: var(--red);
-  background: var(--red-soft);
-}
+.dot-menu-item:hover { background: var(--bg-tint); }
+.dot-menu-item.danger { color: var(--red); }
+.dot-menu-item.danger:hover { background: var(--red-soft); }
 
 @media (max-width: 900px) {
   .app-layout { grid-template-columns: 1fr; }
@@ -1651,6 +1704,8 @@ input { font-family: inherit; }
   }
   .stock-browser.open { transform: translateX(0); }
   .mobile-toggle { display: inline-flex; }
+  /* Hide the live·NSE pill on mobile — header too tight */
+  .header-meta { display: none; }
   /* Shift chips right so the fixed watchlist button doesn't overlap them */
   .quick-chips { padding-left: 130px; }
   .input-bar { padding-bottom: 14px; }

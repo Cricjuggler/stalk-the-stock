@@ -24,6 +24,7 @@ class AnalyzeResponse(BaseModel):
     ticker: str
     company_name: str
     sector: str | None = None
+    is_curated: bool = True
     current_price: float
     high_52w: float | None = None
     low_52w: float | None = None

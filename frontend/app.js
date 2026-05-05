@@ -31,6 +31,11 @@ const state = {
   searchDebounce: null,
   isLoading: false,
   appLoaded: false,
+  // NSE master search
+  nseSearchResults: [],
+  nseSearchAbort: null,
+  // Onboarding
+  obSlide: 0,
 };
 
 // FILTERS is built dynamically from the universe after load, but we seed with fixed top ones.
@@ -40,6 +45,7 @@ let FILTERS = [...STATIC_FILTERS];
 // ---------- INIT ----------
 async function init() {
   setupAuthForms();
+  setupOnboarding();
   const ok = await checkAuth();
   if (ok) await loadApp();
 }
@@ -264,6 +270,8 @@ function setupAuthForms() {
       renderUserChip(data.username);
       hideAuthOverlay();
       await loadApp();
+      // Show onboarding slideshow for brand-new users (not returning logins)
+      showOnboarding();
     } catch (err) {
       errorEl.textContent = err.message || "something went wrong 😬";
       errorEl.classList.remove("hidden");
@@ -355,6 +363,60 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+// ---------- NSE MASTER SEARCH ----------
+async function fetchNseSearch(q) {
+  // Cancel any in-flight request
+  if (state.nseSearchAbort) {
+    state.nseSearchAbort.abort();
+    state.nseSearchAbort = null;
+  }
+  if (!q || q.length < 2) {
+    state.nseSearchResults = [];
+    renderStockList();
+    return;
+  }
+  const ctrl = new AbortController();
+  state.nseSearchAbort = ctrl;
+  try {
+    const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}`, {
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    // Only keep non-curated results (curated ones already show from local universe)
+    state.nseSearchResults = (data.results || []).filter((r) => r.curated === false);
+    // Only re-render if the query hasn't changed while we were waiting
+    if (state.searchQuery === q) renderStockList();
+  } catch (e) {
+    if (e.name !== "AbortError") console.error("NSE search error:", e);
+  }
+}
+
+function nseStockItemHtml(s, q) {
+  const analyzed = state.analyzedStocks[s.ticker];
+  const isActive = state.currentTicker === s.ticker;
+  const isSaved = state.savedStocks.has(s.ticker);
+  let statusDot = "";
+  if (analyzed) {
+    const color = analyzed.status?.color || "blue";
+    statusDot = `<span class="status-dot status-${color}" title="${escapeHtml(analyzed.status?.status || "")}"></span>`;
+  }
+  return `
+    <div class="stock-item nse-item ${isActive ? "active" : ""}" data-ticker="${escapeHtml(s.ticker)}">
+      <div class="stock-item-main">
+        <span class="stock-name">${highlight(s.company_name, q)}</span>
+        <span class="stock-ticker">${highlight(s.ticker, q)}</span>
+      </div>
+      <div class="stock-item-meta">
+        <span class="sector-tag nse-tag">NSE</span>
+        ${statusDot}
+        ${analyzed ? `<span class="status-mini">${escapeHtml(analyzed.status?.status || "")}</span>` : ""}
+        <button class="save-star-btn ${isSaved ? "saved" : ""}" data-ticker="${escapeHtml(s.ticker)}" title="${isSaved ? "Unsave" : "Save"}" type="button">${isSaved ? "★" : "☆"}</button>
+      </div>
+    </div>
+  `;
+}
+
 // ---------- STOCK LIST ----------
 function renderStockList() {
   const container = document.getElementById("stock-list-container");
@@ -397,6 +459,14 @@ function renderStockList() {
   } else {
     filtered.forEach((s) => {
       html += stockItemHtml(s, q);
+    });
+  }
+
+  // Append NSE master results below curated list (only when searching)
+  if (q.length >= 2 && state.nseSearchResults.length > 0) {
+    html += `<div class="sector-header nse-more-header">🔍 more on NSE</div>`;
+    state.nseSearchResults.forEach((s) => {
+      html += nseStockItemHtml(s, q);
     });
   }
 
@@ -525,6 +595,11 @@ function renderAnalysisCard(data) {
         <button class="refresh-btn" id="refresh-btn">🔄 re-stalk</button>
       </div>
     </div>
+
+    ${!data.is_curated ? `
+    <div class="limited-data-banner">
+      ⚠️ <strong>heads up:</strong> this stock isn't in our curated universe — fundamental data may be sparse or missing. treat this analysis as a starting point, not the full picture. verify on <a href="https://www.screener.in" target="_blank" rel="noopener">screener.in</a> for deeper info.
+    </div>` : ""}
 
     <div class="price-row">
       <span class="current-price">${formatINR(data.current_price)}</span>
@@ -1078,14 +1153,21 @@ function setupEventListeners() {
     const q = e.target.value;
     state.searchQuery = q;
     clearBtn.classList.toggle("visible", q.length > 0);
+    if (q.length < 2) {
+      state.nseSearchResults = [];
+      if (state.nseSearchAbort) { state.nseSearchAbort.abort(); state.nseSearchAbort = null; }
+    }
     clearTimeout(state.searchDebounce);
     state.searchDebounce = setTimeout(() => {
       renderStockList();
+      if (q.length >= 2) fetchNseSearch(q);
     }, 300);
   });
   clearBtn.addEventListener("click", () => {
     searchInput.value = "";
     state.searchQuery = "";
+    state.nseSearchResults = [];
+    if (state.nseSearchAbort) { state.nseSearchAbort.abort(); state.nseSearchAbort = null; }
     clearBtn.classList.remove("visible");
     renderStockList();
   });
@@ -1131,6 +1213,156 @@ function showToast(message, type = "error") {
     t.style.transition = "opacity 0.25s";
     setTimeout(() => t.remove(), 250);
   }, 4000);
+}
+
+// ---------- ONBOARDING ----------
+const ONBOARDING_SLIDES = [
+  {
+    emoji: "🔥",
+    title: "Status",
+    subtitle: "stalky's overall verdict",
+    body: "Every stock gets one of four statuses based on its trend + fundamentals combo. This is the first thing to check.",
+    items: [
+      { badge: "In-Form 🔥",     color: "green", desc: "Strong trend + healthy fundamentals — the full package" },
+      { badge: "On-Track ✅",    color: "blue",  desc: "Solid basics, partial trend — promising but not peak yet" },
+      { badge: "Off-Track ⚠️",   color: "amber", desc: "Weak fundamentals or mixed signals — proceed carefully" },
+      { badge: "Out-of-Form ❄️", color: "red",   desc: "Broken trend or critical red flag — needs watching" },
+    ],
+  },
+  {
+    emoji: "📊",
+    title: "RSI",
+    subtitle: "Relative Strength Index · 0 to 100",
+    body: "A momentum oscillator that tells you whether a stock is running too hot or getting oversold. Helps time your entries.",
+    items: [
+      { badge: "≥ 70 — Overbought", color: "red",   desc: "Stock may have run too far, pullback is possible" },
+      { badge: "30–70 — Neutral",   color: "blue",  desc: "Normal territory — trend direction matters more here" },
+      { badge: "≤ 30 — Oversold",   color: "green", desc: "Could bounce back — but always check fundamentals first" },
+    ],
+  },
+  {
+    emoji: "📈",
+    title: "Trend Score",
+    subtitle: "0 to 3",
+    body: "Counts how many key moving averages the price is trading above right now. More greens = stronger uptrend.",
+    items: [
+      { badge: "Price > 1W avg",  color: "blue", desc: "Short-term momentum is positive (5-day SMA)" },
+      { badge: "Price > 30D avg", color: "blue", desc: "Medium-term trend is holding up (21-day SMA)" },
+      { badge: "Price > 52W avg", color: "blue", desc: "Long-term trend is still intact (252-day SMA)" },
+    ],
+    footer: "3/3 = strong uptrend hierarchy. 0/3 = all averages broken.",
+  },
+  {
+    emoji: "🏦",
+    title: "Fundamentals",
+    subtitle: "0 to 3",
+    body: "A quick-check scorecard of three key financial health signals pulled from the company's reported data.",
+    items: [
+      { badge: "ROE > 15%",         color: "green", desc: "Company is efficiently generating returns from equity" },
+      { badge: "Debt/Equity < 1",   color: "green", desc: "Not over-leveraged — manageable debt load" },
+      { badge: "Earnings Growth +", color: "green", desc: "Profits are trending in the right direction" },
+    ],
+    footer: "3/3 = financially healthy. Red flags (high debt, negative growth) subtract points.",
+  },
+  {
+    emoji: "📦",
+    title: "Volume",
+    subtitle: "the conviction signal",
+    body: "Compares yesterday's trading volume to the 30-day average. Unusual volume = someone is paying attention.",
+    items: [
+      { badge: "> 2.0x — High Conviction 🔥", color: "orange", desc: "Big money might be moving — worth digging in" },
+      { badge: "1.0–2.0x — Normal",           color: "blue",   desc: "Regular activity, nothing out of the ordinary" },
+      { badge: "< 1.0x — Low Activity",        color: "amber",  desc: "Quiet day — signals here may be weaker" },
+    ],
+    footer: "High Conviction + In-Form status = a strong setup to research further.",
+  },
+];
+
+function setupOnboarding() {
+  const overlay = document.getElementById("onboarding-overlay");
+  if (!overlay) return;
+
+  document.getElementById("ob-skip").addEventListener("click", closeOnboarding);
+
+  document.getElementById("ob-prev").addEventListener("click", () => {
+    if (state.obSlide > 0) {
+      state.obSlide--;
+      renderOnboardingSlide(state.obSlide);
+    }
+  });
+
+  document.getElementById("ob-next").addEventListener("click", () => {
+    if (state.obSlide < ONBOARDING_SLIDES.length - 1) {
+      state.obSlide++;
+      renderOnboardingSlide(state.obSlide);
+    } else {
+      closeOnboarding();
+    }
+  });
+
+  // Tap on the dim backdrop (not the card) to skip
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeOnboarding();
+  });
+}
+
+function showOnboarding() {
+  const overlay = document.getElementById("onboarding-overlay");
+  if (!overlay) return;
+  state.obSlide = 0;
+  renderOnboardingSlide(0);
+  overlay.classList.remove("hidden");
+}
+
+function closeOnboarding() {
+  const overlay = document.getElementById("onboarding-overlay");
+  if (overlay) overlay.classList.add("hidden");
+  localStorage.setItem("stalk_onboarded", "1");
+}
+
+function renderOnboardingSlide(idx) {
+  const slide = ONBOARDING_SLIDES[idx];
+  const total = ONBOARDING_SLIDES.length;
+
+  // Slide content
+  document.getElementById("ob-slides").innerHTML = `
+    <div class="ob-slide">
+      <span class="ob-emoji">${slide.emoji}</span>
+      <h2 class="ob-title">${escapeHtml(slide.title)}</h2>
+      <p class="ob-subtitle">${escapeHtml(slide.subtitle)}</p>
+      <p class="ob-body">${escapeHtml(slide.body)}</p>
+      <div class="ob-items">
+        ${slide.items
+          .map(
+            (it) => `
+          <div class="ob-item">
+            <span class="ob-badge ob-badge-${it.color}">${escapeHtml(it.badge)}</span>
+            <span class="ob-item-desc">${escapeHtml(it.desc)}</span>
+          </div>`
+          )
+          .join("")}
+      </div>
+      ${slide.footer ? `<p class="ob-footer">${escapeHtml(slide.footer)}</p>` : ""}
+    </div>
+  `;
+
+  // Dots
+  const dotsEl = document.getElementById("ob-dots");
+  dotsEl.innerHTML = Array.from({ length: total }, (_, i) =>
+    `<span class="ob-dot ${i === idx ? "active" : ""}" data-idx="${i}"></span>`
+  ).join("");
+  dotsEl.querySelectorAll(".ob-dot").forEach((dot) => {
+    dot.addEventListener("click", () => {
+      state.obSlide = parseInt(dot.dataset.idx, 10);
+      renderOnboardingSlide(state.obSlide);
+    });
+  });
+
+  // Nav button states
+  const prevBtn = document.getElementById("ob-prev");
+  const nextBtn = document.getElementById("ob-next");
+  prevBtn.style.visibility = idx === 0 ? "hidden" : "visible";
+  nextBtn.textContent = idx === total - 1 ? "let's go! 🚀" : "next →";
 }
 
 // ---------- BOOT ----------

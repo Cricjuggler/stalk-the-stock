@@ -14,7 +14,7 @@ from models.schemas import (
     ChatRequest,
     ChatResponse,
 )
-from services import data_fetcher, technical, fundamental, rating_engine, llm_service
+from services import data_fetcher, technical, fundamental, rating_engine, llm_service, nse_master
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -116,6 +116,7 @@ async def _build_analysis(ticker: str) -> dict:
 
     return {
         "ticker": ticker.upper(),
+        "is_curated": meta is not None,
         "company_name": company_name,
         "sector": sector,
         "current_price": round(current_price, 2),
@@ -150,7 +151,16 @@ async def analyze_stock(request: AnalyzeRequest):
 
 @router.get("/search")
 async def search_stocks(q: str = Query(..., min_length=1)):
-    return {"query": q, "results": data_fetcher.search_stocks(q)}
+    # Curated universe results (instant, in-memory)
+    curated = data_fetcher.search_stocks(q)
+    for s in curated:
+        s["curated"] = True
+
+    # NSE master results — excludes everything already in the curated universe
+    all_curated_tickers: set[str] = {s["ticker"] for s in STOCK_UNIVERSE}
+    nse_results = nse_master.search_nse(q, all_curated_tickers)
+
+    return {"query": q, "results": curated + nse_results}
 
 
 @router.post("/chat", response_model=ChatResponse)

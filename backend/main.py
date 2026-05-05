@@ -1,8 +1,10 @@
 """stalk. — FastAPI app."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -14,6 +16,7 @@ import database
 from routers import stock, health
 from routers import auth as auth_router
 from routers import saved as saved_router
+from services import nse_master as nse_master_svc
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,7 +27,15 @@ logger = logging.getLogger("stalkthestock")
 # Initialise DB before anything else
 database.init_db()
 
-app = FastAPI(title="stalk.", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Pre-load the NSE equity master in the background so search is snappy
+    asyncio.create_task(asyncio.to_thread(nse_master_svc.load_master))
+    yield
+
+
+app = FastAPI(title="stalk.", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

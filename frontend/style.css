@@ -1472,6 +1472,8 @@ input { font-family: inherit; }
   }
   .stock-browser.open { transform: translateX(0); }
   .mobile-toggle { display: inline-flex; }
+  /* Shift chips right so the fixed watchlist button doesn't overlap them */
+  .quick-chips { padding-left: 130px; }
   .input-bar { padding-bottom: 14px; }
   .range-row { grid-template-columns: 1fr; }
   .fund-grid { grid-template-columns: 1fr; }

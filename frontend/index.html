@@ -10,6 +10,36 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <img class="auth-stalky" src="/assets/stalky-full.png" alt="stalky"
+             onerror="this.style.display='none'" />
+        <div class="auth-brand-text">
+          <span class="auth-logo">Stalk the <span>Stock</span> 👀</span>
+          <span class="auth-tagline">your market bestie awaits</span>
+        </div>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">sign in</button>
+        <button class="auth-tab" data-tab="signup">sign up</button>
+      </div>
+      <form id="login-form" class="auth-form">
+        <input class="auth-input" type="email" id="login-email" placeholder="email" autocomplete="email" required />
+        <input class="auth-input" type="password" id="login-password" placeholder="password" autocomplete="current-password" required />
+        <button class="auth-submit" type="submit">let me in 🔓</button>
+        <p class="auth-error hidden" id="login-error"></p>
+      </form>
+      <form id="signup-form" class="auth-form hidden">
+        <input class="auth-input" type="text" id="signup-username" placeholder="pick a username" autocomplete="username" required />
+        <input class="auth-input" type="email" id="signup-email" placeholder="email" autocomplete="email" required />
+        <input class="auth-input" type="password" id="signup-password" placeholder="password (min 6 chars)" autocomplete="new-password" required />
+        <button class="auth-submit" type="submit">create account ✨</button>
+        <p class="auth-error hidden" id="signup-error"></p>
+      </form>
+    </div>
+  </div>
+
   <div class="app-layout">
 
     <aside class="stock-browser" id="stock-browser">
@@ -40,6 +70,7 @@
         <div class="header-meta" id="header-meta">
           <span class="live-dot"></span>
           <span>live · NSE</span>
+          <div class="user-chip" id="user-chip"></div>
         </div>
       </header>
 

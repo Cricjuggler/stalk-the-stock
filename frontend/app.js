@@ -3,6 +3,21 @@ const API_BASE = window.location.origin.startsWith("http")
   ? window.location.origin
   : "http://localhost:8000";
 
+// ---------- AUTH ----------
+const TOKEN_KEY = "stalk_token";
+const USER_KEY  = "stalk_user";
+function getToken()   { return localStorage.getItem(TOKEN_KEY); }
+function saveAuth(token, username) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, username);
+}
+function clearAuth() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+function showAuthOverlay() { document.getElementById("auth-overlay").classList.remove("hidden"); }
+function hideAuthOverlay() { document.getElementById("auth-overlay").classList.add("hidden"); }
+
 const state = {
   currentTicker: null,
   currentAnalysis: null,
@@ -14,6 +29,7 @@ const state = {
   searchQuery: "",
   searchDebounce: null,
   isLoading: false,
+  appLoaded: false,
 };
 
 // FILTERS is built dynamically from the universe after load, but we seed with fixed top ones.
@@ -22,11 +38,138 @@ let FILTERS = [...STATIC_FILTERS];
 
 // ---------- INIT ----------
 async function init() {
+  setupAuthForms();
+  const ok = await checkAuth();
+  if (ok) await loadApp();
+}
+
+async function loadApp() {
+  // Guard: don't initialise twice (e.g. if checkAuth + a form both succeed)
+  if (state.appLoaded) return;
+  state.appLoaded = true;
   await loadStockUniverse();
   renderFilterChips();
   renderStockList();
   setupEventListeners();
   showWelcomeMessage();
+}
+
+async function checkAuth() {
+  const token = getToken();
+  if (!token) { showAuthOverlay(); return false; }
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    renderUserChip(data.username);
+    hideAuthOverlay();
+    return true;
+  } catch {
+    clearAuth();
+    showAuthOverlay();
+    return false;
+  }
+}
+
+function renderUserChip(username) {
+  const chip = document.getElementById("user-chip");
+  if (!chip) return;
+  chip.innerHTML = `
+    <span class="user-name">@${escapeHtml(username)}</span>
+    <button class="logout-btn" id="logout-btn">logout</button>
+  `;
+  chip.querySelector("#logout-btn").addEventListener("click", () => {
+    clearAuth();
+    chip.innerHTML = "";
+    state.appLoaded = false;
+    showAuthOverlay();
+  });
+}
+
+function setupAuthForms() {
+  // Tab switching
+  document.querySelectorAll(".auth-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".auth-tab").forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      const target = tab.dataset.tab;
+      document.getElementById("login-form").classList.toggle("hidden", target !== "login");
+      document.getElementById("signup-form").classList.toggle("hidden", target !== "signup");
+    });
+  });
+
+  // Login form
+  const loginForm = document.getElementById("login-form");
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const submitBtn = loginForm.querySelector(".auth-submit");
+    const errorEl = document.getElementById("login-error");
+    const email    = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "signing in…";
+    errorEl.classList.add("hidden");
+    errorEl.textContent = "";
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "login failed");
+      saveAuth(data.token, data.username);
+      renderUserChip(data.username);
+      hideAuthOverlay();
+      await loadApp();
+    } catch (err) {
+      errorEl.textContent = err.message || "something went wrong 😬";
+      errorEl.classList.remove("hidden");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "let me in 🔓";
+    }
+  });
+
+  // Signup form
+  const signupForm = document.getElementById("signup-form");
+  signupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const submitBtn = signupForm.querySelector(".auth-submit");
+    const errorEl  = document.getElementById("signup-error");
+    const username = document.getElementById("signup-username").value.trim();
+    const email    = document.getElementById("signup-email").value.trim();
+    const password = document.getElementById("signup-password").value;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "creating account…";
+    errorEl.classList.add("hidden");
+    errorEl.textContent = "";
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "signup failed");
+      saveAuth(data.token, data.username);
+      renderUserChip(data.username);
+      hideAuthOverlay();
+      await loadApp();
+    } catch (err) {
+      errorEl.textContent = err.message || "something went wrong 😬";
+      errorEl.classList.remove("hidden");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "create account ✨";
+    }
+  });
 }
 
 async function loadStockUniverse() {
@@ -588,7 +731,7 @@ const INFO_TEXTS = {
   status: "Stalk the Stock's overall verdict.\n• In-Form 🔥 — strong trend + healthy fundamentals\n• On-Track ✅ — solid fundamentals, partial trend\n• Off-Track ⚠️ — weak fundamentals, mixed trend\n• Out-of-Form ❄️ — broken trend or critical red flag",
   rsi: "Relative Strength Index (14-day). Momentum oscillator from 0–100.\n• ≥ 70 — overbought (often due for a pullback)\n• ≤ 30 — oversold (often due for a bounce)\n• 30–70 — neutral",
   trend: "Trend score 0–3. Counts how many of these are true:\n• price > 1-week avg (5-day SMA)\n• price > 30-day avg (21-day SMA)\n• price > 52-week avg (252-day SMA)\nHigher = stronger uptrend hierarchy.",
-  fundamentals: "Fundamental score 0–3. +1 each if:\n• Debt/Equity < 1\n• Return on Equity > 15%\n• Earnings growth positive\n‘Unknown’ values neither add nor subtract.",
+  fundamentals: "Fundamental score 0–3. +1 each if:\n• Debt/Equity < 1\n• Return on Equity > 15%\n• Earnings growth positive\n'Unknown' values neither add nor subtract.",
   volume: "Yesterday's volume vs 30-day average.\n• > 2.0x — High Conviction (institutional interest possible)\n• 1.0–2.0x — Normal\n• < 1.0x — Below average",
   dipZone: "Where signals suggest accumulation interest. Built from VWAP-30 and EMA-200 support levels (±2%). Not a buy recommendation — just where the data clusters.",
   exitZone: "Where signals suggest profit-taking pressure. Built from the upper Bollinger band (20,2σ) and the 52-week high. Not a sell recommendation — just where supply tends to appear.",

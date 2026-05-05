@@ -61,3 +61,6 @@ coverage.xml
 *.bak
 *.tmp
 scratch/
+
+# --- SQLite database ---
+data/

@@ -1,4 +1,4 @@
-"""FormCheck FastAPI app."""
+"""Stalk the Stock — FastAPI app."""
 from __future__ import annotations
 
 import logging
@@ -10,13 +10,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+import database
 from routers import stock, health
+from routers import auth as auth_router
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("stalkthestock")
+
+# Initialise DB before anything else
+database.init_db()
 
 app = FastAPI(title="Stalk the Stock", version="1.0.0")
 
@@ -47,6 +52,7 @@ async def log_requests(request: Request, call_next):
 
 app.include_router(health.router, prefix="")
 app.include_router(stock.router, prefix="/api")
+app.include_router(auth_router.router, prefix="/api/auth")
 
 
 # Serve frontend (sibling directory) so the user can hit one URL.

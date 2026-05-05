@@ -472,6 +472,36 @@ input { font-family: inherit; }
   color: var(--orange-deep);
   letter-spacing: 0.5px;
 }
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.card-star-btn {
+  padding: 7px 11px;
+  font-size: 17px;
+  line-height: 1;
+  background: none;
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--amber);
+  opacity: 0.45;
+  transition: all 0.18s;
+}
+.card-star-btn:hover {
+  opacity: 1;
+  background: var(--orange-soft);
+  border-color: var(--amber);
+  transform: scale(1.08);
+}
+.card-star-btn.saved {
+  opacity: 1;
+  background: var(--orange-soft);
+  border-color: var(--amber);
+}
+
 .refresh-btn {
   padding: 8px 16px;
   font-size: 12px;

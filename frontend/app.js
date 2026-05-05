@@ -155,6 +155,7 @@ async function toggleSave(ticker) {
   if (wasSaved) state.savedStocks.delete(ticker);
   else state.savedStocks.add(ticker);
   renderStockList();
+  syncCardStarBtn(ticker);
 
   try {
     if (wasSaved) {
@@ -175,8 +176,18 @@ async function toggleSave(ticker) {
     if (wasSaved) state.savedStocks.add(ticker);
     else state.savedStocks.delete(ticker);
     renderStockList();
+    syncCardStarBtn(ticker);
     showToast("couldn't save that — try again 😬", "error");
   }
+}
+
+function syncCardStarBtn(ticker) {
+  const btn = document.querySelector(`.card-star-btn[data-ticker="${ticker}"]`);
+  if (!btn) return;
+  const saved = state.savedStocks.has(ticker);
+  btn.textContent = saved ? "★" : "☆";
+  btn.title = saved ? "Unsave" : "Save";
+  btn.classList.toggle("saved", saved);
 }
 
 function setupAuthForms() {
@@ -509,7 +520,10 @@ function renderAnalysisCard(data) {
         <span class="ticker-chip">${escapeHtml(data.ticker)}</span>
         ${data.sector ? `<span class="sector-tag">${escapeHtml(data.sector)}</span>` : ""}
       </div>
-      <button class="refresh-btn" id="refresh-btn">🔄 re-stalk</button>
+      <div class="card-actions">
+        <button class="card-star-btn ${state.savedStocks.has(data.ticker) ? "saved" : ""}" data-ticker="${escapeHtml(data.ticker)}" title="${state.savedStocks.has(data.ticker) ? "Unsave" : "Save"}" type="button">${state.savedStocks.has(data.ticker) ? "★" : "☆"}</button>
+        <button class="refresh-btn" id="refresh-btn">🔄 re-stalk</button>
+      </div>
     </div>
 
     <div class="price-row">
@@ -610,6 +624,7 @@ function renderAnalysisCard(data) {
 
   // Wire up handlers
   card.querySelector("#refresh-btn").addEventListener("click", () => selectStock(data.ticker, true));
+  card.querySelector(".card-star-btn").addEventListener("click", () => toggleSave(data.ticker));
   const toggle = card.querySelector("#toggle-fund");
   toggle.addEventListener("click", () => {
     const detail = card.querySelector("#fund-detail");

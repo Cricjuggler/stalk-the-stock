@@ -1996,11 +1996,35 @@ input { font-family: inherit; }
   transform: translateY(-1px);
 }
 
+/* Stalky hero image — welcome slide */
+.ob-stalky-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.ob-stalky {
+  height: 130px;
+  width: auto;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 8px 20px rgba(251, 133, 0, 0.22));
+  animation: obBounce 3.2s ease-in-out infinite;
+}
+@keyframes obBounce {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%       { transform: translateY(-7px) rotate(2deg); }
+}
+
+/* Welcome slide gets slightly tighter body text so everything fits without scroll */
+.ob-slide-welcome .ob-body { font-size: 13px; margin-bottom: 18px; }
+.ob-slide-welcome .ob-title { font-size: 27px; }
+
 /* Mobile tweaks for onboarding */
 @media (max-width: 600px) {
   .onboarding-card { padding: 38px 24px 28px; }
   .ob-title { font-size: 26px; }
   .ob-badge { min-width: 120px; font-size: 10.5px; }
   .ob-slide-area { min-height: 300px; }
+  .ob-stalky { height: 110px; }
 }
 

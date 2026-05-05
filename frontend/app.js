@@ -1218,6 +1218,19 @@ function showToast(message, type = "error") {
 // ---------- ONBOARDING ----------
 const ONBOARDING_SLIDES = [
   {
+    image: "/assets/stalky-excited.png",
+    imageFallbackEmoji: "👀",
+    title: "hey, i'm stalky 👋",
+    subtitle: "welcome to stalk.",
+    body: "the stock market doesn't have to be boring suits and boring charts. i'm your gen z market bestie — trained on NSE data, powered by AI, and zero tolerance for financial jargon.",
+    items: [
+      { badge: "📊 full stock analysis",  color: "blue",   desc: "status, trend, fundamentals & buy/sell zones — for any NSE stock" },
+      { badge: "💬 chat with me",         color: "orange", desc: "ask me anything. i've got receipts. tbh i love being interrogated" },
+      { badge: "⭐ build your watchlist", color: "green",  desc: "star your faves, stalk them daily, never miss a move" },
+    ],
+    footer: "not SEBI registered · not financial advice · just vibes + data 🫶",
+  },
+  {
     emoji: "🔥",
     title: "Status",
     subtitle: "stalky's overall verdict",
@@ -1325,9 +1338,16 @@ function renderOnboardingSlide(idx) {
   const total = ONBOARDING_SLIDES.length;
 
   // Slide content
+  const heroHtml = slide.image
+    ? `<div class="ob-stalky-wrap">
+         <img src="${slide.image}" alt="stalky" class="ob-stalky"
+              onerror="this.parentElement.innerHTML='<span class=ob-emoji>${slide.imageFallbackEmoji || "👀"}</span>'" />
+       </div>`
+    : `<span class="ob-emoji">${slide.emoji}</span>`;
+
   document.getElementById("ob-slides").innerHTML = `
-    <div class="ob-slide">
-      <span class="ob-emoji">${slide.emoji}</span>
+    <div class="ob-slide ${slide.image ? "ob-slide-welcome" : ""}">
+      ${heroHtml}
       <h2 class="ob-title">${escapeHtml(slide.title)}</h2>
       <p class="ob-subtitle">${escapeHtml(slide.subtitle)}</p>
       <p class="ob-body">${escapeHtml(slide.body)}</p>

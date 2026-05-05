@@ -187,14 +187,25 @@ async function selectStock(ticker, forceRefresh = false) {
   dismissWelcomeHero();
   renderStockList();
 
-  // Use cache if available
+  // Cache hit — scroll to the existing card if already rendered, otherwise render it now
   if (!forceRefresh && state.analyzedStocks[ticker]) {
     state.currentAnalysis = state.analyzedStocks[ticker];
+    const existing = chatWindow().querySelector(`.chat-analysis-wrapper[data-ticker="${ticker}"]`);
+    if (existing) {
+      existing.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     renderAnalysisCard(state.currentAnalysis);
+    addAssistantMessage(`showing ${state.currentAnalysis.company_name} analysis ☕ — ask me anything.`, "default");
     return;
   }
 
-  showSkeletonLoader();
+  // Force refresh — remove the old card for this ticker so the fresh one lands at the bottom
+  if (forceRefresh) {
+    chatWindow().querySelectorAll(`.chat-analysis-wrapper[data-ticker="${ticker}"]`).forEach((el) => el.remove());
+  }
+
+  showSkeletonLoader(ticker);
   state.isLoading = true;
 
   try {
@@ -216,7 +227,7 @@ async function selectStock(ticker, forceRefresh = false) {
     addAssistantMessage(`tea spilled on ${data.company_name} ☕ — ask me anything, i've got receipts.`, pose);
   } catch (e) {
     console.error(e);
-    document.getElementById("analysis-card-container").innerHTML = "";
+    removeSkeletonLoader();
     showToast(e.message || "analysis failed 💔", "error");
     addAssistantMessage(`couldn't pull up ${ticker} 💀 — ${e.message}`, "sad");
   } finally {
@@ -224,9 +235,18 @@ async function selectStock(ticker, forceRefresh = false) {
   }
 }
 
+function chatWindow() { return document.getElementById("chat-window"); }
+
 // ---------- ANALYSIS CARD ----------
 function renderAnalysisCard(data) {
-  const container = document.getElementById("analysis-card-container");
+  // Remove skeleton for this ticker (if still present)
+  removeSkeletonLoader();
+
+  // Wrap the card so we can find it later by ticker
+  const wrapper = document.createElement("div");
+  wrapper.className = "chat-analysis-wrapper";
+  wrapper.dataset.ticker = data.ticker;
+
   const card = document.createElement("div");
   card.className = "analysis-card";
   card.innerHTML = `
@@ -332,8 +352,9 @@ function renderAnalysisCard(data) {
     <div class="disclaimer">not SEBI registered • not financial advice • just vibes 🫶 do your own research</div>
   `;
 
-  container.innerHTML = "";
-  container.appendChild(card);
+  wrapper.appendChild(card);
+  chatWindow().appendChild(wrapper);
+  scrollToBottom();
 
   // Wire up handlers
   card.querySelector("#refresh-btn").addEventListener("click", () => selectStock(data.ticker, true));
@@ -365,8 +386,6 @@ function renderAnalysisCard(data) {
       });
     }
   });
-
-  card.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // ---------- INFO POPOVER ----------
@@ -507,8 +526,13 @@ function renderPriceChangeBadge(change, label) {
   return `<span class="change-badge ${cls}">${label}: ${sign}${change.toFixed(2)}%</span>`;
 }
 
-function showSkeletonLoader() {
-  document.getElementById("analysis-card-container").innerHTML = `
+function showSkeletonLoader(ticker) {
+  removeSkeletonLoader(); // clear any stale skeleton first
+  const skeleton = document.createElement("div");
+  skeleton.id = "analysis-skeleton";
+  skeleton.className = "chat-analysis-wrapper";
+  if (ticker) skeleton.dataset.ticker = ticker;
+  skeleton.innerHTML = `
     <div class="analysis-card skeleton-card">
       <div class="skeleton skeleton-title"></div>
       <div class="skeleton skeleton-price"></div>
@@ -518,6 +542,13 @@ function showSkeletonLoader() {
       <div class="skeleton skeleton-row"></div>
     </div>
   `;
+  chatWindow().appendChild(skeleton);
+  scrollToBottom();
+}
+
+function removeSkeletonLoader() {
+  const el = document.getElementById("analysis-skeleton");
+  if (el) el.remove();
 }
 
 // ---------- CHAT ----------

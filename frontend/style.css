@@ -409,13 +409,19 @@ input { font-family: inherit; }
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Wrapper so analysis cards live inline in the chat flow */
+.chat-analysis-wrapper {
+  width: 100%;
+  animation: slideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1);
+}
+
 .analysis-card {
   background: var(--card-bg);
   border: 1.5px solid var(--card-border);
   border-radius: var(--r-card);
   padding: 28px;
   margin-bottom: 20px;
-  animation: slideIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1);
   box-shadow: var(--shadow);
   position: relative;
 }

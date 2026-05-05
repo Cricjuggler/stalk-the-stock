@@ -16,7 +16,9 @@ const state = {
   isLoading: false,
 };
 
-const FILTERS = ["All", "NIFTY50", "Banking", "IT", "Pharma", "Auto", "FMCG", "Energy"];
+// FILTERS is built dynamically from the universe after load, but we seed with fixed top ones.
+const STATIC_FILTERS = ["All", "NIFTY50"];
+let FILTERS = [...STATIC_FILTERS];
 
 // ---------- INIT ----------
 async function init() {
@@ -37,6 +39,9 @@ async function loadStockUniverse() {
     const meta = document.getElementById("browser-meta");
     const sectorCount = Object.keys(state.sectorMap).length;
     meta.textContent = `${data.total} stocks across ${sectorCount} sectors`;
+    // Build filter list: All + NIFTY50 + unique sectors (sorted)
+    const sectors = [...new Set(state.stockUniverse.map((s) => s.sector).filter(Boolean))].sort();
+    FILTERS = ["All", "NIFTY50", ...sectors];
   } catch (e) {
     console.error(e);
     showToast("can't load the stock list rn — backend ghosted us 👻", "error");
@@ -63,7 +68,7 @@ function applyFilter(stock) {
   const f = state.activeFilter;
   if (f === "All") return true;
   if (f === "NIFTY50") return stock.index === "NIFTY50";
-  return stock.sector === f;
+  return stock.sector === f; // Dynamic sector match
 }
 
 function applySearch(stock, q) {
@@ -240,9 +245,12 @@ function renderAnalysisCard(data) {
         ${renderPriceChangeBadge(data.price_changes?.change_1d, "1D")}
         ${renderPriceChangeBadge(data.price_changes?.change_1w, "1W")}
         ${renderPriceChangeBadge(data.price_changes?.change_1m, "1M")}
+        ${data.price_changes?.change_ytd != null ? renderPriceChangeBadge(data.price_changes.change_ytd, "YTD") : ""}
         ${infoBtn("priceChanges")}
       </div>
     </div>
+
+    ${render52wBar(data.current_price, data.low_52w, data.high_52w)}
 
     <div class="status-row">
       <span class="status-badge status-${data.status.color}">
@@ -415,15 +423,19 @@ function renderFundamentalsDetail(fund) {
   const d = fund.details || {};
   const peStr = d.pe_ratio != null ? Number(d.pe_ratio).toFixed(1) : "N/A";
   const pbStr = d.pb_ratio != null ? Number(d.pb_ratio).toFixed(2) : "N/A";
+  const roeStr = d.roe_value != null ? `${Number(d.roe_value).toFixed(1)}%` : null;
+  const deStr = d.debt_to_equity_value != null ? Number(d.debt_to_equity_value).toFixed(2) : null;
+  const roeDisplay = roeStr ? `${escapeHtml(d.roe_status || "")} <span class="fund-actual">(${roeStr})</span>` : escapeHtml(d.roe_status || "N/A");
+  const deDisplay = deStr ? `${escapeHtml(d.debt_status || "")} <span class="fund-actual">(${deStr})</span>` : escapeHtml(d.debt_status || "N/A");
   return `
     <div class="fund-grid">
       <div class="fund-item">
         <span class="fund-label">ROE</span>
-        <span class="fund-value ${d.roe_status === "Strong(>15%)" ? "positive" : ""}">${escapeHtml(d.roe_status || "N/A")}</span>
+        <span class="fund-value ${d.roe_status === "Strong(>15%)" ? "positive" : ""}">${roeDisplay}</span>
       </div>
       <div class="fund-item">
         <span class="fund-label">Debt/Equity</span>
-        <span class="fund-value ${d.debt_status === "Low(<1)" ? "positive" : ""}">${escapeHtml(d.debt_status || "N/A")}</span>
+        <span class="fund-value ${d.debt_status === "Low(<1)" ? "positive" : ""}">${deDisplay}</span>
       </div>
       <div class="fund-item">
         <span class="fund-label">P/E Ratio</span>
@@ -447,6 +459,28 @@ function renderFundamentalsDetail(fund) {
 }
 
 // ---------- HELPERS ----------
+function render52wBar(current, low, high) {
+  if (low == null || high == null || high <= low) return "";
+  const range = high - low;
+  const pct = Math.max(0, Math.min(100, ((current - low) / range) * 100));
+  const nearHigh = pct >= 80;
+  const nearLow = pct <= 20;
+  const markerClass = nearHigh ? "marker-high" : nearLow ? "marker-low" : "";
+  return `
+    <div class="range-52w-wrap">
+      <div class="range-52w-labels">
+        <span class="range-52w-label">52W Low ${formatINR(low)}</span>
+        <span class="range-52w-center-label">${pct.toFixed(0)}% of range</span>
+        <span class="range-52w-label">52W High ${formatINR(high)}</span>
+      </div>
+      <div class="range-52w-bar">
+        <div class="range-52w-fill" style="width:${pct.toFixed(1)}%"></div>
+        <div class="range-52w-marker ${markerClass}" style="left:${pct.toFixed(1)}%"></div>
+      </div>
+    </div>
+  `;
+}
+
 function formatINR(price) {
   if (price == null || price === undefined) return "N/A";
   try {
@@ -528,7 +562,7 @@ const INFO_TEXTS = {
   volume: "Yesterday's volume vs 30-day average.\n• > 2.0x — High Conviction (institutional interest possible)\n• 1.0–2.0x — Normal\n• < 1.0x — Below average",
   dipZone: "Where signals suggest accumulation interest. Built from VWAP-30 and EMA-200 support levels (±2%). Not a buy recommendation — just where the data clusters.",
   exitZone: "Where signals suggest profit-taking pressure. Built from the upper Bollinger band (20,2σ) and the 52-week high. Not a sell recommendation — just where supply tends to appear.",
-  priceChanges: "Percentage price change over each window — 1 day, 1 week (5 trading days), 1 month (21 trading days).",
+  priceChanges: "Percentage price change over each window — 1 day, 1 week (5 trading days), 1 month (21 trading days), YTD (year-to-date from Jan 1).",
   conviction: "🔥 High Conviction fires when yesterday's volume is over 2× the 30-day average — strong signal that whatever happened wasn't random.",
 };
 

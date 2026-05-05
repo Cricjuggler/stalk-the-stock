@@ -77,7 +77,7 @@ TREND DATA:
 - Trend Score: {trend.get("trend_score")}/3
 
 PRICE CHANGES:
-- 1D: {price_changes.get("change_1d")}% | 1W: {price_changes.get("change_1w")}% | 1M: {price_changes.get("change_1m")}%
+- 1D: {price_changes.get("change_1d")}% | 1W: {price_changes.get("change_1w")}% | 1M: {price_changes.get("change_1m")}% | YTD: {price_changes.get("change_ytd")}%
 
 VOLUME:
 - Yesterday vs 30D avg: {volume.get("volume_ratio")}x ({volume.get("conviction_flag")})

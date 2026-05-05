@@ -119,6 +119,8 @@ async def _build_analysis(ticker: str) -> dict:
         "company_name": company_name,
         "sector": sector,
         "current_price": round(current_price, 2),
+        "high_52w": round(price_data["high_52w"], 2),
+        "low_52w": round(price_data["low_52w"], 2),
         "price_changes": price_changes,
         "rsi": rsi,
         "status": status,

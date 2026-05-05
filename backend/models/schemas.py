@@ -25,6 +25,8 @@ class AnalyzeResponse(BaseModel):
     company_name: str
     sector: str | None = None
     current_price: float
+    high_52w: float | None = None
+    low_52w: float | None = None
     price_changes: dict
     rsi: float | None = None
     status: dict

@@ -196,6 +196,7 @@ input { font-family: inherit; }
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.18s;
 }
 .filter-chip:hover {
@@ -1390,6 +1391,64 @@ input { font-family: inherit; }
   z-index: 40;
 }
 .mobile-backdrop.visible { display: block; }
+
+/* ===== 52W RANGE BAR ===== */
+.range-52w-wrap {
+  margin: 0 0 4px;
+  padding: 10px 0 4px;
+}
+.range-52w-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+}
+.range-52w-center-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-weight: 700;
+  opacity: 0.7;
+}
+.range-52w-bar {
+  position: relative;
+  height: 6px;
+  background: var(--card-border);
+  border-radius: var(--r-pill);
+  overflow: visible;
+}
+.range-52w-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue-soft), var(--blue) 80%);
+  border-radius: var(--r-pill);
+  min-width: 4px;
+}
+.range-52w-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: var(--black);
+  border: 2.5px solid white;
+  border-radius: 50%;
+  box-shadow: var(--shadow);
+  z-index: 2;
+}
+.range-52w-marker.marker-high { background: var(--green); }
+.range-52w-marker.marker-low  { background: var(--red); }
+
+/* ===== FUNDAMENTALS ACTUAL VALUE ===== */
+.fund-actual {
+  font-size: 10.5px;
+  opacity: 0.65;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
 
 @media (max-width: 900px) {
   .app-layout { grid-template-columns: 1fr; }

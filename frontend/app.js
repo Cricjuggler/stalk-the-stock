@@ -92,7 +92,7 @@ function showProfileModal(username) {
     }
     const fillClass = u.pct_used >= 90 ? "dmu-fill-danger" : u.pct_used >= 70 ? "dmu-fill-warn" : "";
     usageBlock.innerHTML = `
-      <div class="pm-usage-title">🪙 free tokens this month</div>
+      <div class="pm-usage-title">🪙 Free AI Tokens this month</div>
       <div class="pm-usage-remaining">${u.tokens_remaining.toLocaleString()} <span class="pm-usage-label">left</span></div>
       <div class="dmu-bar pm-bar"><div class="dmu-fill ${fillClass}" style="width:${Math.min(u.pct_used, 100)}%"></div></div>
       <div class="pm-usage-sub">${u.tokens_used.toLocaleString()} used · ${u.tokens_limit.toLocaleString()} total · ${escapeHtml(u.period)}</div>
@@ -152,7 +152,7 @@ function renderUserChip(username) {
     if (!u) {
       return `<div class="dot-menu-usage" id="dmu-block">
         <div class="dmu-header">
-          <span class="dmu-title">🪙 free tokens</span>
+          <span class="dmu-title">🪙 Free AI Tokens</span>
           <button class="dmu-refresh" id="dmu-refresh-btn" title="Refresh usage">↻</button>
         </div>
         <div class="dmu-loading">loading…</div>
@@ -164,7 +164,7 @@ function renderUserChip(username) {
     const period    = escapeHtml(u.period);
     return `<div class="dot-menu-usage" id="dmu-block">
       <div class="dmu-header">
-        <span class="dmu-title">🪙 free tokens</span>
+        <span class="dmu-title">🪙 Free AI Tokens</span>
         <button class="dmu-refresh" id="dmu-refresh-btn" title="Refresh usage">↻</button>
       </div>
       <div class="dmu-remaining">${remaining} <span class="dmu-remaining-label">left this month</span></div>

@@ -53,8 +53,12 @@ def _detect_ticker_in_message(message: str) -> str | None:
     return None
 
 
-async def _build_analysis(ticker: str, user_id: int | None = None) -> dict:
-    """Run the full pipeline and return a dict matching AnalyzeResponse shape."""
+async def _build_analysis(ticker: str, user_id: int | None = None, skip_llm: bool = False) -> dict:
+    """Run the full pipeline and return a dict matching AnalyzeResponse shape.
+
+    ``skip_llm=True`` skips the why-card LLM call — used for cheap chat context
+    building where we only need the numeric/indicator fields.
+    """
     meta = get_stock_meta(ticker)
 
     try:
@@ -96,20 +100,24 @@ async def _build_analysis(ticker: str, user_id: int | None = None) -> dict:
     buy_range = technical.calculate_buy_range(vwap_30, mas.get("ema_200"))
     sell_range = technical.calculate_sell_range(bb.get("upper_band"), price_data.get("high_52w"), current_price)
 
-    why_card, why_tokens = await llm_service.generate_why_card(
-        ticker=price_data["ticker_display"],
-        company_name=fund_data.get("company_name") or (meta["company_name"] if meta else ticker),
-        status=status,
-        trend=trend,
-        fundamentals=fund_eval,
-        volume=volume,
-        buy_range=buy_range,
-        sell_range=sell_range,
-        current_price=current_price,
-        rsi=rsi,
-        price_changes=price_changes,
-        mas=mas,
-    )
+    if skip_llm:
+        why_card = {"source": "skipped", "why_bullets": [], "analyst_note": "", "confidence": ""}
+        why_tokens = 0
+    else:
+        why_card, why_tokens = await llm_service.generate_why_card(
+            ticker=price_data["ticker_display"],
+            company_name=fund_data.get("company_name") or (meta["company_name"] if meta else ticker),
+            status=status,
+            trend=trend,
+            fundamentals=fund_eval,
+            volume=volume,
+            buy_range=buy_range,
+            sell_range=sell_range,
+            current_price=current_price,
+            rsi=rsi,
+            price_changes=price_changes,
+            mas=mas,
+        )
     if user_id is not None and why_tokens > 0:
         database.add_tokens(user_id, why_tokens)
 
@@ -199,11 +207,12 @@ async def chat(
 
     if request.context_ticker:
         try:
-            # Don't double-count tokens for the context fetch here — the
-            # context analysis was already paid for when /analyze was called.
-            analysis_context = await _build_analysis(request.context_ticker)
+            # skip_llm=True: no why-card LLM call needed just for chat context.
+            # Catch all exceptions so a flaky data fetch never kills a chat reply.
+            analysis_context = await _build_analysis(request.context_ticker, skip_llm=True)
             detected = analysis_context["ticker"]
-        except HTTPException:
+        except Exception:
+            logger.warning("Could not build context for ticker %s in chat — proceeding without it.", request.context_ticker)
             analysis_context = None
 
     if analysis_context is None:

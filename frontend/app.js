@@ -1261,7 +1261,7 @@ async function sendMessage(text) {
   } catch (e) {
     console.error(e);
     removeTypingIndicator();
-    showToast("chat broke 😭 — check if the backend is alive", "error");
+    addAssistantMessage("something went sideways on my end 😬 — try again in a sec?");
   }
 }
 

@@ -13,8 +13,8 @@ const API_BASE = (() => {
   if (host === "localhost" || host === "127.0.0.1" || host === "") {
     return "http://localhost:8000";
   }
-  // ⚠️ Replace this with your Railway backend URL after first deploy.
-  return "https://stalk-backend.up.railway.app";
+  // Backend on Render — https://dashboard.render.com → stalk-backend
+  return "https://stalk-backend-35kr.onrender.com";
 })();
 
 // ---------- AUTH ----------

@@ -337,6 +337,9 @@ input { font-family: inherit; }
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* Use dynamic viewport height where supported — fixes mobile browsers
+     where the URL bar would otherwise eat into the input bar. */
+  height: 100dvh;
   background: var(--bg);
   overflow: hidden;
 }
@@ -1419,20 +1422,21 @@ input { font-family: inherit; }
 .mobile-toggle {
   display: none;
   position: fixed;
-  bottom: 88px;
-  left: 16px;
-  background: var(--orange);
-  color: white;
-  font-weight: 800;
-  font-size: 13px;
-  padding: 13px 18px;
-  border-radius: var(--r-pill);
-  box-shadow: var(--shadow-lg), var(--shadow-orange);
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  left: 14px;
+  width: 40px;
+  height: 40px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px solid var(--card-border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
   z-index: 50;
   align-items: center;
-  gap: 6px;
-  letter-spacing: 0.02em;
+  justify-content: center;
+  padding: 0;
 }
+.mobile-toggle:active { transform: scale(0.94); background: var(--bg-tint); }
 .mobile-backdrop {
   display: none;
   position: fixed;
@@ -1823,22 +1827,89 @@ input { font-family: inherit; }
   }
   .stock-browser.open { transform: translateX(0); }
   .mobile-toggle { display: inline-flex; }
+
+  /* ── Header: tighter, hamburger sits to the left of the logo ─── */
+  .app-header {
+    padding: 14px 16px 12px 64px; /* leave room for the floating hamburger */
+    border-bottom: 1px solid var(--card-border);
+  }
+  .logo-wrap { gap: 2px; }
+  .logo { font-size: 22px; gap: 6px; }
+  .logo-icon { font-size: 20px; }
+  .tagline { font-size: 11.5px; }
   /* Hide the live·NSE pill on mobile — header too tight */
   .header-meta { display: none; }
-  /* Shift chips right so the fixed watchlist button doesn't overlap them */
-  .quick-chips { padding-left: 130px; }
-  .input-bar { padding-bottom: 14px; }
+  .header-right { gap: 8px; }
+  .dot-menu-btn { width: 32px; height: 32px; }
+
+  /* ── Content: tighter horizontal padding ─────────────────────── */
+  .content-scroll { padding: 16px 14px 8px; }
+
+  /* ── Quick-chips: full-width horizontal scroll, no offset hack ── */
+  .quick-chips {
+    padding: 10px 14px 6px;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chip { padding: 9px 14px; font-size: 12.5px; }
+
+  /* ── Input bar: tighter and respects iOS home-indicator ────────── */
+  .input-bar {
+    padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+  }
+  #chat-input { padding: 12px 14px; font-size: 14px; }
+  #send-btn { padding: 0 16px; font-size: 13px; }
+  #send-btn span { display: none; } /* icon-only on mobile */
+
+  /* ── Cards / analysis layout: stack everything ────────────────── */
   .range-row { grid-template-columns: 1fr; }
   .fund-grid { grid-template-columns: 1fr; }
   .score-row { grid-template-columns: 1fr; }
   .current-price { font-size: 30px; }
   .company-name { font-size: 22px; }
-  .logo { font-size: 22px; }
-  .bot-avatar { width: 42px; height: 42px; font-size: 18px; }
+  .bot-avatar { width: 38px; height: 38px; font-size: 17px; }
   .welcome-hero { flex-direction: column; text-align: center; padding: 22px; gap: 16px; }
   .hero-stalky { width: 140px; height: 170px; }
   .hero-text h2 { font-size: 22px; }
   .hero-pills { justify-content: center; }
+
+  /* Auth card — full width minus padding */
+  .auth-card { padding: 28px 22px; gap: 18px; }
+  .auth-stalky { width: 56px; height: 66px; }
+  .auth-logo { font-size: 22px; }
+  .auth-tagline { font-size: 11px; }
+
+  /* Stock-list rows: a touch tighter on mobile */
+  .stock-item { padding: 10px 12px; }
+}
+
+/* ───── Extra-narrow phones (≤480px): squeeze a bit more ─────── */
+@media (max-width: 480px) {
+  .app-header { padding: 12px 14px 10px 60px; }
+  .logo { font-size: 20px; }
+  .logo-icon { font-size: 18px; }
+  .tagline { font-size: 11px; line-height: 1.3; }
+  .hero-stalky { width: 120px; height: 150px; }
+  .hero-text h2 { font-size: 20px; }
+  .hero-text p { font-size: 13px; }
+  .current-price { font-size: 26px; }
+  .company-name { font-size: 19px; }
+  .content-scroll { padding: 12px 12px 6px; }
+  .quick-chips { padding: 8px 12px 4px; }
+  .input-bar {
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  #chat-input { padding: 11px 14px; font-size: 13.5px; }
+  /* Auth card on tiny phones */
+  .auth-card { padding: 24px 18px; }
+  /* Onboarding card on tiny phones */
+  .onboarding-card { padding: 32px 18px 22px; }
+  /* Profile / dot-menu: drop dropdown to be wider for thumb tap */
+  .dot-menu-dropdown { min-width: 200px; }
+  /* Toasts: keep them off the input bar */
+  .toast-container { right: 14px; left: 14px; bottom: 90px; }
+  .toast { max-width: none; }
 }
 
 /* ===== NSE MASTER SEARCH ===== */

@@ -1,0 +1,30 @@
+# ── stalk. — Render service (backend API only) ─────────────────────────────
+# Frontend is deployed separately on Vercel.
+# Database is Postgres on Neon (DATABASE_URL env var).
+# ────────────────────────────────────────────────────────────────────────────
+
+services:
+  - type: web
+    name: stalk-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /ping
+    autoDeploy: true
+    envVars:
+      # Postgres connection string from Neon dashboard
+      - key: DATABASE_URL
+        sync: false                  # paste this in the Render dashboard
+      # Claude API key
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # JWT signing secret — auto-generated on first deploy
+      - key: SECRET_KEY
+        generateValue: true
+      # Comma-separated list of allowed origins (set to your Vercel URL after FE deploys)
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: CLAUDE_MODEL
+        value: claude-opus-4-7

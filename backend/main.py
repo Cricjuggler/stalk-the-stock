@@ -16,6 +16,7 @@ import database
 from routers import stock, health
 from routers import auth as auth_router
 from routers import saved as saved_router
+from routers import usage as usage_router
 from services import nse_master as nse_master_svc
 
 logging.basicConfig(
@@ -66,6 +67,7 @@ app.include_router(health.router, prefix="")
 app.include_router(stock.router, prefix="/api")
 app.include_router(auth_router.router, prefix="/api/auth")
 app.include_router(saved_router.router, prefix="/api/saved")
+app.include_router(usage_router.router, prefix="/api/usage")
 
 
 # Serve frontend (sibling directory) so the user can hit one URL.

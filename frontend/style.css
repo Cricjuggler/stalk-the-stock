@@ -1718,6 +1718,45 @@ input { font-family: inherit; }
 .dot-menu-item.danger { color: var(--red); }
 .dot-menu-item.danger:hover { background: var(--red-soft); }
 
+/* Usage bar inside dot-menu */
+.dot-menu-usage {
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid var(--card-border);
+  margin-bottom: 4px;
+}
+.dmu-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.dmu-pct { color: var(--text-secondary); }
+.dmu-bar {
+  height: 5px;
+  background: var(--bg-tint);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.dmu-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--blue);
+  transition: width 0.4s ease;
+}
+.dmu-fill-warn   { background: var(--amber); }
+.dmu-fill-danger { background: var(--red); }
+.dmu-sub {
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
 @media (max-width: 900px) {
   .app-layout { grid-template-columns: 1fr; }
   .stock-browser {

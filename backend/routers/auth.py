@@ -55,6 +55,21 @@ def get_current_user(authorization: str = Header(None)) -> dict:
     return decode_token(token)
 
 
+def get_optional_user(authorization: str = Header(None)) -> dict | None:
+    """Like get_current_user but returns None for missing / invalid tokens.
+
+    Use this on endpoints that work anonymously but want to track authenticated
+    users (e.g. /analyze, /chat).
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.removeprefix("Bearer ").strip()
+    try:
+        return decode_token(token)
+    except HTTPException:
+        return None
+
+
 # ---------- Schemas ----------
 
 class SignupBody(BaseModel):

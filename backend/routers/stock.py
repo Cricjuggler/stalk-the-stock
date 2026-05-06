@@ -4,9 +4,12 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 from datetime import datetime, timezone
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+import config
+import database
 from config import STOCK_UNIVERSE, get_stock_meta
 from models.schemas import (
     AnalyzeRequest,
@@ -14,10 +17,21 @@ from models.schemas import (
     ChatRequest,
     ChatResponse,
 )
+from routers.auth import get_optional_user
 from services import data_fetcher, technical, fundamental, rating_engine, llm_service, nse_master
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _check_and_enforce_limit(user_id: int) -> None:
+    """Raise HTTP 429 if the user has exceeded their monthly token budget."""
+    used = database.get_month_tokens(user_id)
+    if used >= config.TOKEN_LIMIT_PER_USER:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="usage_limit_exceeded",
+        )
 
 
 def _detect_ticker_in_message(message: str) -> str | None:
@@ -39,7 +53,7 @@ def _detect_ticker_in_message(message: str) -> str | None:
     return None
 
 
-async def _build_analysis(ticker: str) -> dict:
+async def _build_analysis(ticker: str, user_id: int | None = None) -> dict:
     """Run the full pipeline and return a dict matching AnalyzeResponse shape."""
     meta = get_stock_meta(ticker)
 
@@ -82,7 +96,7 @@ async def _build_analysis(ticker: str) -> dict:
     buy_range = technical.calculate_buy_range(vwap_30, mas.get("ema_200"))
     sell_range = technical.calculate_sell_range(bb.get("upper_band"), price_data.get("high_52w"), current_price)
 
-    why_card = await llm_service.generate_why_card(
+    why_card, why_tokens = await llm_service.generate_why_card(
         ticker=price_data["ticker_display"],
         company_name=fund_data.get("company_name") or (meta["company_name"] if meta else ticker),
         status=status,
@@ -96,6 +110,8 @@ async def _build_analysis(ticker: str) -> dict:
         price_changes=price_changes,
         mas=mas,
     )
+    if user_id is not None and why_tokens > 0:
+        database.add_tokens(user_id, why_tokens)
 
     warnings: list[str] = []
     if not price_data.get("data_fresh"):
@@ -145,8 +161,14 @@ async def _build_analysis(ticker: str) -> dict:
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_stock(request: AnalyzeRequest):
-    return await _build_analysis(request.ticker)
+async def analyze_stock(
+    request: AnalyzeRequest,
+    user: Optional[dict] = Depends(get_optional_user),
+):
+    user_id: int | None = int(user["sub"]) if user else None
+    if user_id is not None:
+        _check_and_enforce_limit(user_id)
+    return await _build_analysis(request.ticker, user_id=user_id)
 
 
 @router.get("/search")
@@ -164,12 +186,21 @@ async def search_stocks(q: str = Query(..., min_length=1)):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(
+    request: ChatRequest,
+    user: Optional[dict] = Depends(get_optional_user),
+):
+    user_id: int | None = int(user["sub"]) if user else None
+    if user_id is not None:
+        _check_and_enforce_limit(user_id)
+
     analysis_context: dict | None = None
     detected: str | None = None
 
     if request.context_ticker:
         try:
+            # Don't double-count tokens for the context fetch here — the
+            # context analysis was already paid for when /analyze was called.
             analysis_context = await _build_analysis(request.context_ticker)
             detected = analysis_context["ticker"]
         except HTTPException:
@@ -180,11 +211,14 @@ async def chat(request: ChatRequest):
         if guess:
             detected = guess
 
-    response_text = await llm_service.process_chat(
+    response_text, chat_tokens = await llm_service.process_chat(
         user_message=request.message,
         analysis_context=analysis_context,
         conversation_history=request.conversation_history or [],
     )
+    if user_id is not None and chat_tokens > 0:
+        database.add_tokens(user_id, chat_tokens)
+
     return ChatResponse(response=response_text, ticker_detected=detected)
 
 

@@ -134,8 +134,11 @@ async def generate_why_card(
     rsi: float | None,
     price_changes: dict,
     mas: dict,
-) -> dict[str, Any]:
-    """Call Claude for an analyst-style why card; fall back to rule-based on any failure."""
+) -> tuple[dict[str, Any], int]:
+    """Call Claude for an analyst-style why card; fall back to rule-based on any failure.
+
+    Returns ``(card_dict, tokens_used)`` — tokens_used is 0 for rule-based fallbacks.
+    """
     fallback = generate_fallback_why_card(
         ticker, status, trend, fundamentals, volume, buy_range, sell_range, current_price, mas
     )
@@ -143,7 +146,7 @@ async def generate_why_card(
     client = _get_client()
     if client is None:
         logger.info("ANTHROPIC_API_KEY missing — using rule-based why-card.")
-        return fallback
+        return fallback, 0
 
     user_prompt = _build_user_prompt(
         ticker, company_name, status, trend, fundamentals, volume,
@@ -164,23 +167,24 @@ async def generate_why_card(
     except asyncio.TimeoutError:
         logger.warning("Claude why-card timed out for %s", ticker)
         fallback["source"] = "rule-based-fallback"
-        return fallback
+        return fallback, 0
     except Exception as e:
         logger.exception("Claude why-card error for %s: %s", ticker, e)
         fallback["source"] = "rule-based-fallback"
-        return fallback
+        return fallback, 0
 
     try:
         text = response.content[0].text
+        tokens_used = response.usage.input_tokens + response.usage.output_tokens
     except Exception:
         fallback["source"] = "rule-based-fallback"
-        return fallback
+        return fallback, 0
 
     parsed = _parse_json_response(text)
     if parsed is None:
         logger.warning("Claude returned unparseable JSON for %s; using fallback.", ticker)
         fallback["source"] = "rule-based-fallback"
-        return fallback
+        return fallback, 0
 
     parsed["source"] = "claude"
     # Ensure exactly 3 bullets
@@ -188,25 +192,27 @@ async def generate_why_card(
         parsed["why_bullets"] = parsed["why_bullets"][:3]
     elif len(parsed["why_bullets"]) < 3:
         parsed["why_bullets"] = parsed["why_bullets"] + fallback["why_bullets"][len(parsed["why_bullets"]) :]
-    return parsed
+    return parsed, tokens_used
 
 
 async def process_chat(
     user_message: str,
     analysis_context: dict | None,
     conversation_history: list[dict] | None,
-) -> str:
-    """Multi-turn chat with optional analysis context for the in-focus stock."""
+) -> tuple[str, int]:
+    """Multi-turn chat with optional analysis context for the in-focus stock.
+
+    Returns ``(response_text, tokens_used)`` — tokens_used is 0 on fallback/error.
+    """
     client = _get_client()
     if client is None:
         return (
             "chat needs an ANTHROPIC_API_KEY in your .env to work 🔑 — "
             "but you can still stalk stocks from the watchlist on the left ✨"
-        )
+        ), 0
 
     system = CHAT_SYSTEM_PROMPT
     if analysis_context:
-        # Compact context summary appended to the system prompt
         ctx = (
             f"\n\nCURRENT ANALYSIS CONTEXT:\n"
             f"Ticker: {analysis_context.get('ticker')}\n"
@@ -242,9 +248,10 @@ async def process_chat(
             ),
             timeout=15.0,
         )
-        return response.content[0].text.strip()
+        tokens_used = response.usage.input_tokens + response.usage.output_tokens
+        return response.content[0].text.strip(), tokens_used
     except asyncio.TimeoutError:
-        return "I'm taking too long to respond. Please try a simpler question or try again in a moment."
+        return "I'm taking too long to respond. Please try a simpler question or try again in a moment.", 0
     except Exception as e:
         logger.exception("Claude chat error: %s", e)
-        return "Something went wrong while processing that. Please try again."
+        return "Something went wrong while processing that. Please try again.", 0

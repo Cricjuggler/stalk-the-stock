@@ -5,6 +5,7 @@ import hashlib
 import os
 import secrets
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 # Resolve path relative to this file: backend/ -> project_root/data/users.db
@@ -42,6 +43,17 @@ def init_db() -> None:
                 ticker   TEXT    NOT NULL,
                 saved_at TEXT    NOT NULL DEFAULT (datetime('now')),
                 UNIQUE(user_id, ticker)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS token_usage (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                period   TEXT    NOT NULL,
+                tokens   INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(user_id, period)
             )
             """
         )
@@ -140,3 +152,46 @@ def remove_saved_stock(user_id: int, ticker: str) -> bool:
         )
         conn.commit()
     return cur.rowcount > 0
+
+
+# ---------- Token usage ----------
+
+def _current_period() -> str:
+    """Return the current billing period as 'YYYY-MM'."""
+    return datetime.utcnow().strftime("%Y-%m")
+
+
+def get_month_tokens(user_id: int) -> int:
+    """Return tokens consumed by this user in the current calendar month."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT tokens FROM token_usage WHERE user_id = ? AND period = ?",
+            (user_id, _current_period()),
+        ).fetchone()
+    return row["tokens"] if row else 0
+
+
+def add_tokens(user_id: int, n: int) -> int:
+    """Add *n* tokens to the user's monthly counter.  Returns the new total.
+
+    Uses an upsert so it's safe to call from concurrent requests.
+    """
+    if n <= 0:
+        return get_month_tokens(user_id)
+    period = _current_period()
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO token_usage (user_id, period, tokens)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, period)
+            DO UPDATE SET tokens = tokens + excluded.tokens
+            """,
+            (user_id, period, n),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT tokens FROM token_usage WHERE user_id = ? AND period = ?",
+            (user_id, period),
+        ).fetchone()
+    return row["tokens"] if row else n

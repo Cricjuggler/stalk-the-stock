@@ -36,6 +36,8 @@ const state = {
   nseSearchAbort: null,
   // Onboarding
   obSlide: 0,
+  // Token usage
+  usage: null,   // { tokens_used, tokens_limit, tokens_remaining, pct_used, period }
 };
 
 // FILTERS is built dynamically from the universe after load, but we seed with fixed top ones.
@@ -55,11 +57,23 @@ async function loadApp() {
   if (state.appLoaded) return;
   state.appLoaded = true;
   await loadStockUniverse();
-  await loadSavedStocks();
+  await Promise.all([loadSavedStocks(), loadUsage()]);
   renderFilterChips();
   renderStockList();
   setupEventListeners();
   showWelcomeMessage();
+}
+
+async function loadUsage() {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/usage`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    state.usage = await res.json();
+  } catch { /* non-critical */ }
 }
 
 async function checkAuth() {
@@ -90,11 +104,24 @@ function renderUserChip(username) {
 
   const chip = document.getElementById("user-chip");
   if (!chip) return;
+  const u = state.usage;
+  const usageHtml = u
+    ? `<div class="dot-menu-usage">
+         <div class="dmu-label">
+           <span>AI usage · ${escapeHtml(u.period)}</span>
+           <span class="dmu-pct">${u.pct_used}%</span>
+         </div>
+         <div class="dmu-bar"><div class="dmu-fill ${u.pct_used >= 90 ? "dmu-fill-danger" : u.pct_used >= 70 ? "dmu-fill-warn" : ""}" style="width:${Math.min(u.pct_used, 100)}%"></div></div>
+         <div class="dmu-sub">${u.tokens_used.toLocaleString()} / ${u.tokens_limit.toLocaleString()} tokens</div>
+       </div>`
+    : "";
+
   chip.innerHTML = `
     <div class="dot-menu" id="dot-menu">
       <button class="dot-menu-btn" id="dot-menu-btn" aria-label="Account menu" title="Account">⋮</button>
       <div class="dot-menu-dropdown hidden" id="dot-menu-dropdown">
         <div class="dot-menu-user">@${escapeHtml(username)}</div>
+        ${usageHtml}
         <button class="dot-menu-item" id="dot-profile-btn">👤 profile</button>
         <button class="dot-menu-item danger" id="dot-logout-btn">👋 logout</button>
       </div>
@@ -123,6 +150,7 @@ function renderUserChip(username) {
     chip.innerHTML = "";
     state.appLoaded = false;
     state.savedStocks = new Set();
+    state.usage = null;
     showAuthOverlay();
   });
 
@@ -543,13 +571,23 @@ async function selectStock(ticker, forceRefresh = false) {
   state.isLoading = true;
 
   try {
+    const headers = { "Content-Type": "application/json" };
+    const token = getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
     const res = await fetch(`${API_BASE}/api/analyze`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ ticker }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      if (res.status === 429 && err.detail === "usage_limit_exceeded") {
+        removeSkeletonLoader();
+        state.isLoading = false;
+        showUsageLimitToast();
+        return;
+      }
       throw new Error(err.detail || `Error ${res.status}`);
     }
     const data = await res.json();
@@ -1116,16 +1154,28 @@ async function sendMessage(text) {
 
   showTypingIndicator();
   try {
+    const chatHeaders = { "Content-Type": "application/json" };
+    const chatToken = getToken();
+    if (chatToken) chatHeaders["Authorization"] = `Bearer ${chatToken}`;
+
     const res = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: chatHeaders,
       body: JSON.stringify({
         message: text,
         context_ticker: state.currentTicker,
         conversation_history: state.conversationHistory.slice(-10),
       }),
     });
-    if (!res.ok) throw new Error(`Chat error ${res.status}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 429 && err.detail === "usage_limit_exceeded") {
+        removeTypingIndicator();
+        showUsageLimitToast();
+        return;
+      }
+      throw new Error(`Chat error ${res.status}`);
+    }
     const data = await res.json();
     removeTypingIndicator();
     addAssistantMessage(data.response);
@@ -1199,6 +1249,18 @@ function setupEventListeners() {
     browser.classList.remove("open");
     backdrop.classList.remove("visible");
   });
+}
+
+// ---------- USAGE LIMIT ----------
+function isUsageLimitError(err) {
+  return err && (err.detail === "usage_limit_exceeded" || err.status === 429);
+}
+
+function showUsageLimitToast() {
+  showToast(
+    "Rohan has set a monthly usage limit to protect his credit balance 💸 — you've hit this month's cap. try again next month!",
+    "warning"
+  );
 }
 
 // ---------- TOAST ----------

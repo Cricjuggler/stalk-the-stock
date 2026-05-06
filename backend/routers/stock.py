@@ -199,11 +199,12 @@ async def chat(
 
     if request.context_ticker:
         try:
-            # Don't double-count tokens for the context fetch here — the
-            # context analysis was already paid for when /analyze was called.
             analysis_context = await _build_analysis(request.context_ticker)
             detected = analysis_context["ticker"]
-        except HTTPException:
+        except Exception:
+            # Any failure fetching context (data error, timeout, etc.)
+            # must never kill the chat reply — just proceed without context.
+            logger.warning("Chat context fetch failed for %s — continuing without it.", request.context_ticker)
             analysis_context = None
 
     if analysis_context is None:
@@ -211,11 +212,16 @@ async def chat(
         if guess:
             detected = guess
 
-    response_text, chat_tokens = await llm_service.process_chat(
-        user_message=request.message,
-        analysis_context=analysis_context,
-        conversation_history=request.conversation_history or [],
-    )
+    try:
+        response_text, chat_tokens = await llm_service.process_chat(
+            user_message=request.message,
+            analysis_context=analysis_context,
+            conversation_history=request.conversation_history or [],
+        )
+    except Exception:
+        logger.exception("process_chat raised unexpectedly for message: %s", request.message[:80])
+        response_text, chat_tokens = "having a bit of a brain glitch rn 😅 — try again in a sec!", 0
+
     if user_id is not None and chat_tokens > 0:
         database.add_tokens(user_id, chat_tokens)
 

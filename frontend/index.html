@@ -67,11 +67,13 @@
           <span class="logo"><span class="logo-wordmark">stalk<span class="logo-dot">.</span></span><span class="logo-icon">👀</span></span>
           <span class="tagline">stalk the stock — we're watching them so you don't have to</span>
         </div>
-        <div class="header-meta" id="header-meta">
-          <span class="live-dot"></span>
-          <span>live · NSE</span>
+        <div class="header-right">
+          <div class="header-meta" id="header-meta">
+            <span class="live-dot"></span>
+            <span>live · NSE</span>
+          </div>
+          <div class="user-chip" id="user-chip"></div>
         </div>
-        <div class="user-chip" id="user-chip"></div>
       </header>
 
       <div class="content-scroll" id="content-scroll">
@@ -114,6 +116,18 @@
         <button class="ob-btn-prev" id="ob-prev">← back</button>
         <button class="ob-btn-next" id="ob-next">next →</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== PROFILE MODAL ===== -->
+  <div class="profile-modal-overlay hidden" id="profile-modal-overlay">
+    <div class="profile-modal">
+      <button class="profile-modal-close" id="profile-modal-close" aria-label="Close">×</button>
+      <div class="pm-avatar">👤</div>
+      <div class="pm-username" id="pm-username"></div>
+      <div class="pm-badge">stalker 👀</div>
+      <div class="pm-divider"></div>
+      <div class="pm-usage-block" id="pm-usage-block"></div>
     </div>
   </div>
 

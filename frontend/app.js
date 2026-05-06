@@ -76,6 +76,49 @@ async function loadUsage() {
   } catch { /* non-critical */ }
 }
 
+function showProfileModal(username) {
+  const overlay = document.getElementById("profile-modal-overlay");
+  const usernameEl = document.getElementById("pm-username");
+  const usageBlock = document.getElementById("pm-usage-block");
+  if (!overlay) return;
+
+  usernameEl.textContent = `@${username}`;
+
+  function renderUsage() {
+    const u = state.usage;
+    if (!u) {
+      usageBlock.innerHTML = `<div class="pm-loading">loading usage…</div>`;
+      return;
+    }
+    const fillClass = u.pct_used >= 90 ? "dmu-fill-danger" : u.pct_used >= 70 ? "dmu-fill-warn" : "";
+    usageBlock.innerHTML = `
+      <div class="pm-usage-title">🪙 free tokens this month</div>
+      <div class="pm-usage-remaining">${u.tokens_remaining.toLocaleString()} <span class="pm-usage-label">left</span></div>
+      <div class="dmu-bar pm-bar"><div class="dmu-fill ${fillClass}" style="width:${Math.min(u.pct_used, 100)}%"></div></div>
+      <div class="pm-usage-sub">${u.tokens_used.toLocaleString()} used · ${u.tokens_limit.toLocaleString()} total · ${escapeHtml(u.period)}</div>
+      <button class="pm-refresh-btn" id="pm-refresh-btn">↻ refresh</button>
+    `;
+    document.getElementById("pm-refresh-btn")?.addEventListener("click", async () => {
+      const btn = document.getElementById("pm-refresh-btn");
+      if (btn) { btn.textContent = "↺ refreshing…"; btn.disabled = true; }
+      await loadUsage();
+      renderUsage();
+    });
+  }
+
+  renderUsage();
+  overlay.classList.remove("hidden");
+
+  // Wire close button (idempotent — remove old listener first)
+  const closeBtn = document.getElementById("profile-modal-close");
+  const newClose = closeBtn.cloneNode(true);
+  closeBtn.parentNode.replaceChild(newClose, closeBtn);
+  newClose.addEventListener("click", () => overlay.classList.add("hidden"));
+
+  // Close on backdrop click
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.add("hidden"); };
+}
+
 async function checkAuth() {
   const token = getToken();
   if (!token) { showAuthOverlay(); return false; }
@@ -166,7 +209,7 @@ function renderUserChip(username) {
 
   chip.querySelector("#dot-profile-btn").addEventListener("click", () => {
     dropdown.classList.add("hidden");
-    showToast(`logged in as @${escapeHtml(username)} ✨`, "info");
+    showProfileModal(username);
   });
 
   chip.querySelector("#dot-logout-btn").addEventListener("click", () => {

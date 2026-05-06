@@ -207,7 +207,7 @@ async def process_chat(
     client = _get_client()
     if client is None:
         return (
-            "chat needs an ANTHROPIC_API_KEY in your .env to work 🔑 — "
+            "AI chat is taking a quick break 😴 — "
             "but you can still stalk stocks from the watchlist on the left ✨"
         ), 0
 

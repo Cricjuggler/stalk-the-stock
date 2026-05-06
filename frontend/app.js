@@ -1,7 +1,21 @@
 // stalk. — vanilla JS frontend
-const API_BASE = window.location.origin.startsWith("http")
-  ? window.location.origin
-  : "http://localhost:8000";
+//
+// API_BASE points to the FastAPI backend. Frontend is hosted on Vercel,
+// backend on Railway, so the two run on different origins in prod.
+//
+// Override at runtime by setting window.STALK_API_BASE before this script
+// loads (e.g. injected by a Vercel build step). Falls back to localhost in dev.
+const API_BASE = (() => {
+  if (typeof window !== "undefined" && window.STALK_API_BASE) {
+    return window.STALK_API_BASE;
+  }
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1" || host === "") {
+    return "http://localhost:8000";
+  }
+  // ⚠️ Replace this with your Railway backend URL after first deploy.
+  return "https://stalk-backend.up.railway.app";
+})();
 
 // ---------- AUTH ----------
 const TOKEN_KEY = "stalk_token";

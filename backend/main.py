@@ -1,16 +1,15 @@
-"""stalk. — FastAPI app."""
+"""stalk. — FastAPI app (API only; frontend served by Vercel)."""
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 import database
 from routers import stock, health
@@ -38,9 +37,16 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="stalk.", version="1.0.0", lifespan=lifespan)
 
+
+# ─── CORS ────────────────────────────────────────────────────────────────────
+# Default to permissive for local dev. In prod set CORS_ORIGINS to a comma-
+# separated list of allowed origins (e.g. "https://stalk.vercel.app").
+_cors_env = os.getenv("CORS_ORIGINS", "*").strip()
+_allowed_origins = ["*"] if _cors_env in ("", "*") else [o.strip() for o in _cors_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,33 +76,6 @@ app.include_router(saved_router.router, prefix="/api/saved")
 app.include_router(usage_router.router, prefix="/api/usage")
 
 
-# Serve frontend (sibling directory) so the user can hit one URL.
-_FRONTEND_DIR = (Path(__file__).resolve().parent.parent / "frontend")
-if _FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(_FRONTEND_DIR)), name="static")
-    _ASSETS_DIR = _FRONTEND_DIR / "assets"
-    if _ASSETS_DIR.exists():
-        app.mount("/assets", StaticFiles(directory=str(_ASSETS_DIR)), name="assets")
-
-    # Tell the browser never to cache these — dev iteration shouldn't fight stale assets.
-    _NO_CACHE_HEADERS = {
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
-    }
-
-    @app.get("/")
-    async def root():
-        return FileResponse(str(_FRONTEND_DIR / "index.html"), headers=_NO_CACHE_HEADERS)
-
-    @app.get("/style.css")
-    async def style_css():
-        return FileResponse(str(_FRONTEND_DIR / "style.css"), headers=_NO_CACHE_HEADERS)
-
-    @app.get("/app.js")
-    async def app_js():
-        return FileResponse(str(_FRONTEND_DIR / "app.js"), headers=_NO_CACHE_HEADERS)
-else:
-    @app.get("/")
-    async def root():
-        return {"service": "stalk.", "status": "ok", "frontend": "not found"}
+@app.get("/")
+async def root():
+    return {"service": "stalk.", "status": "ok", "frontend": "deployed separately on Vercel"}

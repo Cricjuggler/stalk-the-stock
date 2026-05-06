@@ -20,8 +20,8 @@ LLM_TIMEOUT_SECONDS = 8.0
 LLM_MAX_TOKENS = 800
 
 # Monthly token budget per user.  Set TOKEN_LIMIT_PER_USER in env / Render
-# dashboard to override.  Defaults to 100 000 tokens (~100-150 AI requests).
-TOKEN_LIMIT_PER_USER: int = int(os.getenv("TOKEN_LIMIT_PER_USER", "100000"))
+# dashboard to override.  Defaults to 50 000 tokens (~50-75 AI requests).
+TOKEN_LIMIT_PER_USER: int = int(os.getenv("TOKEN_LIMIT_PER_USER", "50000"))
 
 STOCK_UNIVERSE = [
     # ENERGY / OIL

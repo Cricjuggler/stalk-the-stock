@@ -104,24 +104,38 @@ function renderUserChip(username) {
 
   const chip = document.getElementById("user-chip");
   if (!chip) return;
-  const u = state.usage;
-  const usageHtml = u
-    ? `<div class="dot-menu-usage">
-         <div class="dmu-label">
-           <span>AI usage · ${escapeHtml(u.period)}</span>
-           <span class="dmu-pct">${u.pct_used}%</span>
-         </div>
-         <div class="dmu-bar"><div class="dmu-fill ${u.pct_used >= 90 ? "dmu-fill-danger" : u.pct_used >= 70 ? "dmu-fill-warn" : ""}" style="width:${Math.min(u.pct_used, 100)}%"></div></div>
-         <div class="dmu-sub">${u.tokens_used.toLocaleString()} / ${u.tokens_limit.toLocaleString()} tokens</div>
-       </div>`
-    : "";
+  function buildUsageBlock() {
+    const u = state.usage;
+    if (!u) {
+      return `<div class="dot-menu-usage" id="dmu-block">
+        <div class="dmu-header">
+          <span class="dmu-title">🪙 free tokens</span>
+          <button class="dmu-refresh" id="dmu-refresh-btn" title="Refresh usage">↻</button>
+        </div>
+        <div class="dmu-loading">loading…</div>
+      </div>`;
+    }
+    const fillClass = u.pct_used >= 90 ? "dmu-fill-danger" : u.pct_used >= 70 ? "dmu-fill-warn" : "";
+    const remaining = u.tokens_remaining.toLocaleString();
+    const limit     = u.tokens_limit.toLocaleString();
+    const period    = escapeHtml(u.period);
+    return `<div class="dot-menu-usage" id="dmu-block">
+      <div class="dmu-header">
+        <span class="dmu-title">🪙 free tokens</span>
+        <button class="dmu-refresh" id="dmu-refresh-btn" title="Refresh usage">↻</button>
+      </div>
+      <div class="dmu-remaining">${remaining} <span class="dmu-remaining-label">left this month</span></div>
+      <div class="dmu-bar"><div class="dmu-fill ${fillClass}" style="width:${Math.min(u.pct_used, 100)}%"></div></div>
+      <div class="dmu-sub">${u.tokens_used.toLocaleString()} used · ${limit} total · ${period}</div>
+    </div>`;
+  }
 
   chip.innerHTML = `
     <div class="dot-menu" id="dot-menu">
       <button class="dot-menu-btn" id="dot-menu-btn" aria-label="Account menu" title="Account">⋮</button>
       <div class="dot-menu-dropdown hidden" id="dot-menu-dropdown">
         <div class="dot-menu-user">@${escapeHtml(username)}</div>
-        ${usageHtml}
+        ${buildUsageBlock()}
         <button class="dot-menu-item" id="dot-profile-btn">👤 profile</button>
         <button class="dot-menu-item danger" id="dot-logout-btn">👋 logout</button>
       </div>
@@ -134,6 +148,20 @@ function renderUserChip(username) {
   menuBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     dropdown.classList.toggle("hidden");
+  });
+
+  // Refresh usage button inside the dropdown
+  chip.querySelector("#dmu-refresh-btn").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    btn.textContent = "↺";
+    btn.disabled = true;
+    await loadUsage();
+    // Full re-render keeps all event wiring clean
+    renderUserChip(username);
+    // Re-open the dropdown (re-render closes it by default)
+    const dd = document.getElementById("dot-menu-dropdown");
+    if (dd) dd.classList.remove("hidden");
   });
 
   chip.querySelector("#dot-profile-btn").addEventListener("click", () => {

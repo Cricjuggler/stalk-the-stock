@@ -1326,14 +1326,51 @@ function setupEventListeners() {
   // Mobile drawer
   const browser = document.getElementById("stock-browser");
   const backdrop = document.getElementById("mobile-backdrop");
-  document.getElementById("mobile-toggle").addEventListener("click", () => {
+  const mobileToggle = document.getElementById("mobile-toggle");
+  const mobileHint = document.getElementById("mobile-hint");
+
+  mobileToggle.addEventListener("click", () => {
     browser.classList.toggle("open");
     backdrop.classList.toggle("visible");
+    dismissMobileHint();
+    mobileToggle.classList.add("tapped"); // stops the pulse animation
   });
   backdrop.addEventListener("click", () => {
     browser.classList.remove("open");
     backdrop.classList.remove("visible");
   });
+
+  // First-time mobile hint — only on small viewports, shown once per browser
+  setupMobileHint(mobileHint, mobileToggle);
+}
+
+const MOBILE_HINT_KEY = "stalk_mobile_hint_seen";
+
+function setupMobileHint(hintEl, toggleEl) {
+  if (!hintEl || !toggleEl) return;
+  // Skip on tablets/desktops, or if the user has already seen the hint
+  const isPhone = window.matchMedia("(max-width: 900px)").matches;
+  if (!isPhone) return;
+  if (localStorage.getItem(MOBILE_HINT_KEY) === "1") return;
+
+  // Show hint after the welcome bubble has had a beat to render
+  setTimeout(() => {
+    hintEl.classList.remove("hidden");
+  }, 900);
+
+  // Auto-dismiss after 6 seconds
+  setTimeout(dismissMobileHint, 6900);
+
+  // Tap anywhere on the hint to dismiss
+  hintEl.addEventListener("click", dismissMobileHint);
+}
+
+function dismissMobileHint() {
+  const hintEl = document.getElementById("mobile-hint");
+  if (hintEl && !hintEl.classList.contains("hidden")) {
+    hintEl.classList.add("hidden");
+  }
+  try { localStorage.setItem(MOBILE_HINT_KEY, "1"); } catch { /* ignore */ }
 }
 
 // ---------- USAGE LIMIT ----------

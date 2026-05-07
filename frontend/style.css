@@ -1422,21 +1422,69 @@ input { font-family: inherit; }
 .mobile-toggle {
   display: none;
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 14px);
-  left: 14px;
-  width: 40px;
-  height: 40px;
-  background: var(--surface);
-  color: var(--ink);
-  border: 1.5px solid var(--card-border-strong);
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: 12px;
+  height: 38px;
+  padding: 0 12px 0 10px;
+  background: var(--orange);
+  color: white;
+  border: none;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-sm), 0 4px 12px rgba(251, 133, 0, 0.32);
   z-index: 50;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  animation: mtPulse 2.4s ease-in-out 0s 4; /* 4 pulses on first load */
 }
-.mobile-toggle:active { transform: scale(0.94); background: var(--bg-tint); }
+.mobile-toggle:active { transform: scale(0.94); background: var(--orange-deep); }
+.mobile-toggle.tapped { animation: none; }
+.mobile-toggle-label { display: inline-block; }
+
+/* Pulse animation — gentle attention-grab on first load */
+@keyframes mtPulse {
+  0%, 100% { box-shadow: var(--shadow-sm), 0 4px 12px rgba(251, 133, 0, 0.32); }
+  50% { box-shadow: var(--shadow-sm), 0 8px 22px rgba(251, 133, 0, 0.55), 0 0 0 6px rgba(251, 133, 0, 0.18); }
+}
+
+/* One-time hint tooltip pointing at the hamburger */
+@keyframes mhPop {
+  0% { opacity: 0; transform: translateY(-4px) scale(0.92); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.mobile-hint {
+  display: none;
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  left: 14px;
+  background: var(--ink);
+  color: white;
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 9px 13px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  z-index: 49;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  animation: mhPop 0.32s cubic-bezier(0.2, 0.9, 0.4, 1);
+  max-width: calc(100vw - 28px);
+}
+.mobile-hint.hidden { display: none !important; }
+.mobile-hint-arrow {
+  position: absolute;
+  top: -5px;
+  left: 18px;
+  width: 10px;
+  height: 10px;
+  background: var(--ink);
+  transform: rotate(45deg);
+}
 .mobile-backdrop {
   display: none;
   position: fixed;
@@ -1827,10 +1875,12 @@ input { font-family: inherit; }
   }
   .stock-browser.open { transform: translateX(0); }
   .mobile-toggle { display: inline-flex; }
+  .mobile-hint { display: block; }
+  .mobile-hint.hidden { display: none !important; }
 
   /* ── Header: tighter, hamburger sits to the left of the logo ─── */
   .app-header {
-    padding: 14px 16px 12px 64px; /* leave room for the floating hamburger */
+    padding: 14px 16px 12px 110px; /* leave room for the labeled hamburger */
     border-bottom: 1px solid var(--card-border);
   }
   .logo-wrap { gap: 2px; }
@@ -1886,7 +1936,9 @@ input { font-family: inherit; }
 
 /* ───── Extra-narrow phones (≤480px): squeeze a bit more ─────── */
 @media (max-width: 480px) {
-  .app-header { padding: 12px 14px 10px 60px; }
+  .app-header { padding: 12px 14px 10px 104px; }
+  /* Tighten the hamburger label slightly on tiny phones */
+  .mobile-toggle { height: 36px; padding: 0 11px 0 9px; font-size: 12.5px; }
   .logo { font-size: 20px; }
   .logo-icon { font-size: 18px; }
   .tagline { font-size: 11px; line-height: 1.3; }

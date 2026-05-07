@@ -202,23 +202,40 @@ function renderUserChip(username) {
   const menuBtn  = chip.querySelector("#dot-menu-btn");
   const dropdown = chip.querySelector("#dot-menu-dropdown");
 
-  menuBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    dropdown.classList.toggle("hidden");
-  });
+  // Re-render the usage block in place + re-wire its refresh button
+  function rerenderUsageBlock() {
+    const block = document.getElementById("dmu-block");
+    if (!block) return;
+    block.outerHTML = buildUsageBlock();
+    wireRefreshButton();
+  }
+  function wireRefreshButton() {
+    const refreshBtn = document.getElementById("dmu-refresh-btn");
+    if (!refreshBtn) return;
+    refreshBtn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      ev.currentTarget.classList.add("dmu-refreshing");
+      ev.currentTarget.disabled = true;
+      await loadUsage();
+      rerenderUsageBlock();
+    });
+  }
+  // Initial wiring (block was rendered as part of chip.innerHTML above)
+  wireRefreshButton();
 
-  // Refresh usage button inside the dropdown
-  chip.querySelector("#dmu-refresh-btn").addEventListener("click", async (e) => {
+  menuBtn.addEventListener("click", async (e) => {
     e.stopPropagation();
-    const btn = e.currentTarget;
-    btn.textContent = "↺";
-    btn.disabled = true;
-    await loadUsage();
-    // Full re-render keeps all event wiring clean
-    renderUserChip(username);
-    // Re-open the dropdown (re-render closes it by default)
-    const dd = document.getElementById("dot-menu-dropdown");
-    if (dd) dd.classList.remove("hidden");
+    const wasHidden = dropdown.classList.contains("hidden");
+    dropdown.classList.toggle("hidden");
+    // When opening, fetch fresh token usage in the background so the user
+    // sees a live count instead of stale state (or 'loading…' on first open).
+    if (wasHidden) {
+      await loadUsage();
+      // Only update if dropdown is still open (user didn't close it)
+      if (!dropdown.classList.contains("hidden")) {
+        rerenderUsageBlock();
+      }
+    }
   });
 
   chip.querySelector("#dot-profile-btn").addEventListener("click", () => {
